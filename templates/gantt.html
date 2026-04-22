@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% from "_project_update_macros.html" import render_project_updates %}
+
+{% block title %}Project Gantt | Monitoring Workspace{% endblock %}
+{% block page_eyebrow %}Gantt{% endblock %}
+{% block page_title %}Project Gantt{% endblock %}
+{% block page_intro %}A planning view for project delivery windows, target dates, and customer rollout progress across the workspace.{% endblock %}
+
+{% block header_actions %}
+    <a class="button button-primary" href="{{ url_for('add_task') }}">New Project</a>
+{% endblock %}
+
+{% block page_tools %}
+    <section class="gantt-toolbar-shell">
+        <div class="gantt-toolbar-primary">
+            <div class="gantt-toolbar-left">
+                <span class="gantt-icon-button">[]</span>
+
+                <a class="gantt-chip-button {% if gantt.is_today_window %}active{% endif %}" href="{{ url_for('gantt_view', start=gantt.period.today_start_token, span=gantt.period.days, sort=gantt.period.sort_key, fit=gantt.period.fit_mode, search=filters.search, category=filters.category, status=filters.status) }}">Today</a>
+
+                <div class="gantt-segmented-control">
+                    <a class="gantt-segment-button {% if gantt.period.days == 7 %}active{% endif %}" href="{{ url_for('gantt_view', start=gantt.period.start_token, span=7, sort=gantt.period.sort_key, fit=gantt.period.fit_mode, search=filters.search, category=filters.category, status=filters.status) }}">Week</a>
+                    <a class="gantt-segment-button {% if gantt.period.days == 14 %}active{% endif %}" href="{{ url_for('gantt_view', start=gantt.period.start_token, span=14, sort=gantt.period.sort_key, fit=gantt.period.fit_mode, search=filters.search, category=filters.category, status=filters.status) }}">2 Weeks</a>
+                    <a class="gantt-segment-button {% if gantt.period.days == 30 %}active{% endif %}" href="{{ url_for('gantt_view', start=gantt.period.start_token, span=30, sort=gantt.period.sort_key, fit=gantt.period.fit_mode, search=filters.search, category=filters.category, status=filters.status) }}">Month</a>
+                </div>
+
+                <a class="gantt-chip-button {% if gantt.period.fit_mode == 'auto' %}active{% endif %}" href="{{ url_for('gantt_view', start=gantt.period.start_token, span=gantt.period.days, sort=gantt.period.sort_key, fit='comfortable' if gantt.period.fit_mode == 'auto' else 'auto', search=filters.search, category=filters.category, status=filters.status) }}">Auto fit</a>
+                <a class="gantt-chip-button" href="{{ url_for('gantt_export_view', start=gantt.period.start_token, span=gantt.period.days, sort=gantt.period.sort_key, fit=gantt.period.fit_mode, search=filters.search, category=filters.category, status=filters.status) }}">Export</a>
+            </div>
+
+            <div class="gantt-toolbar-right">
+                <a class="gantt-nav-button" href="{{ url_for('gantt_view', start=gantt.period.prev_token, span=gantt.period.days, sort=gantt.period.sort_key, fit=gantt.period.fit_mode, search=filters.search, category=filters.category, status=filters.status) }}">Previous</a>
+                <div class="gantt-period-badge">
+                    <span>{{ gantt.period.label }}</span>
+                </div>
+                <a class="gantt-nav-button" href="{{ url_for('gantt_view', start=gantt.period.next_token, span=gantt.period.days, sort=gantt.period.sort_key, fit=gantt.period.fit_mode, search=filters.search, category=filters.category, status=filters.status) }}">Next</a>
+            </div>
+        </div>
+
+        <div class="gantt-toolbar-secondary">
+            <form class="gantt-filter-form" method="get">
+                <input name="start" type="hidden" value="{{ gantt.period.start_token }}">
+                <input name="span" type="hidden" value="{{ gantt.period.days }}">
+                <input name="fit" type="hidden" value="{{ gantt.period.fit_mode }}">
+
+                <div class="gantt-filter-group gantt-filter-search">
+                    <label for="search">Search</label>
+                    <input id="search" name="search" type="text" placeholder="Customer, assignee, project, issue, next action" value="{{ filters.search }}">
+                </div>
+
+                <div class="gantt-filter-group">
+                    <label for="sort">Sort</label>
+                    <select id="sort" name="sort">
+                        <option value="due" {% if gantt.period.sort_key == 'due' %}selected{% endif %}>Due date</option>
+                        <option value="updated" {% if gantt.period.sort_key == 'updated' %}selected{% endif %}>Latest update</option>
+                        <option value="priority" {% if gantt.period.sort_key == 'priority' %}selected{% endif %}>Priority</option>
+                        <option value="title" {% if gantt.period.sort_key == 'title' %}selected{% endif %}>Title</option>
+                    </select>
+                </div>
+
+                <div class="gantt-filter-group">
+                    <label for="category">Service</label>
+                    <select id="category" name="category">
+                        <option value="">All services</option>
+                        {% for category in kpi_categories %}
+                            <option value="{{ category.name }}" {% if filters.category == category.name %}selected{% endif %}>{{ category.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="gantt-filter-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="">All statuses</option>
+                        {% for status in status_choices %}
+                            <option value="{{ status.value }}" {% if filters.status == status.value %}selected{% endif %}>{{ status.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button class="button button-secondary button-small" type="submit">Apply</button>
+                <a class="button button-ghost button-small" href="{{ url_for('gantt_view', start=gantt.period.start_token, span=gantt.period.days) }}">Reset</a>
+            </form>
+        </div>
+    </section>
+{% endblock %}
+
+{% block content %}
+    <section class="gantt-summary-row">
+        <div class="gantt-summary-chip">
+            <span>Visible Projects</span>
+            <strong>{{ summary.visible_records }}</strong>
+        </div>
+        <div class="gantt-summary-chip">
+            <span>Due In Window</span>
+            <strong>{{ summary.due_in_window }}</strong>
+        </div>
+        <div class="gantt-summary-chip gantt-summary-chip-alert">
+            <span>Overdue</span>
+            <strong>{{ summary.overdue }}</strong>
+        </div>
+        <div class="gantt-summary-chip">
+            <span>Unscheduled</span>
+            <strong>{{ summary.unscheduled }}</strong>
+        </div>
+    </section>
+
+    <section class="panel gantt-layout-panel">
+        {% if gantt.groups %}
+            <div class="gantt-frame" style="--gantt-day-size: {{ gantt.day_cell_size }}px; --gantt-day-count: {{ gantt.days|length }};">
+                <div class="gantt-grid-header">
+                    <div class="gantt-name-column-head">
+                        <span>Project</span>
+                        <a class="gantt-head-add" href="{{ url_for('add_task') }}">+</a>
+                    </div>
+
+                    <div class="gantt-timeline-column-head">
+                        <div class="gantt-week-strip" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(var(--gantt-day-size), 1fr));">
+                            {% for segment in gantt.week_segments %}
+                                <div class="gantt-week-block" style="grid-column: span {{ segment.span }};">
+                                    <strong>{{ segment.label }}</strong>
+                                    <span>{{ segment.range_label }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="gantt-day-strip" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(var(--gantt-day-size), 1fr));">
+                            {% for day in gantt.days %}
+                                <div class="gantt-day-block {% if day.is_weekend %}is-weekend{% endif %} {% if day.is_today %}is-today{% endif %}">
+                                    <span>{{ day.short_label }}</span>
+                                    <strong>{{ day.number }}</strong>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="gantt-grid-body">
+                    {% for group in gantt.groups %}
+                        <div class="gantt-group-header-row">
+                            <div class="gantt-group-label">
+                                <span class="gantt-group-caret">></span>
+                                <strong>{{ group.title }}</strong>
+                                <span>{{ group.task_count }}</span>
+                            </div>
+
+                            <div class="gantt-group-track">
+                                <div class="gantt-track-grid" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(var(--gantt-day-size), 1fr));">
+                                    {% for day in gantt.days %}
+                                        <span class="gantt-track-cell {% if day.is_weekend %}is-weekend{% endif %}"></span>
+                                    {% endfor %}
+                                </div>
+                                {% if gantt.today_position is not none %}
+                                    <span class="gantt-global-today-line" style="left: {{ gantt.today_position }}%;"></span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% for row in group.rows %}
+                            <div class="gantt-item-row">
+                                <div class="gantt-item-meta">
+                                    <a class="gantt-item-title" href="{{ url_for('task_detail', task_id=row.id) }}">{{ row.title }}</a>
+                                    {% if row.has_timeline_update %}
+                                        <span class="timeline-updated-badge">Project Update</span>
+                                    {% endif %}
+                                    <span class="gantt-item-subline">{{ row.record_status_text }}</span>
+                                    {% if row.record_status_meta %}
+                                        <span class="gantt-item-subline record-status-meta">{{ row.record_status_meta }}</span>
+                                    {% endif %}
+                                    {{ render_project_updates(row, "gantt") }}
+                                </div>
+
+                                <div class="gantt-item-track">
+                                    <div class="gantt-track-grid" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(var(--gantt-day-size), 1fr));">
+                                        {% for day in gantt.days %}
+                                            <span class="gantt-track-cell {% if day.is_weekend %}is-weekend{% endif %}"></span>
+                                        {% endfor %}
+                                    </div>
+
+                                    {% if gantt.today_position is not none %}
+                                        <span class="gantt-global-today-line" style="left: {{ gantt.today_position }}%;"></span>
+                                    {% endif %}
+
+                                    <a class="gantt-task-bar bar-{{ row.bar_variant }}" href="{{ url_for('task_detail', task_id=row.id) }}" style="left: {{ row.left_percent }}%; width: {{ row.width_percent }}%;">
+                                        <span class="gantt-task-bar-title">{{ row.title }}</span>
+                                        <span class="gantt-task-bar-range">{{ row.start_display }} - {{ row.end_display }}</span>
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <h3>No scheduled projects in this window</h3>
+                <p>Move to another window, add target dates, or broaden the filters to populate the Gantt timeline.</p>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="gantt-bottom-grid">
+        <article class="panel gantt-support-card">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Window Summary</p>
+                    <h3>{{ gantt.period.label }}</h3>
+                </div>
+            </div>
+
+            <div class="gantt-support-list">
+                <div class="gantt-support-item">
+                    <span>Visible projects</span>
+                    <strong>{{ summary.visible_records }}</strong>
+                </div>
+                <div class="gantt-support-item">
+                    <span>Due in window</span>
+                    <strong>{{ summary.due_in_window }}</strong>
+                </div>
+                <div class="gantt-support-item">
+                    <span>Overdue</span>
+                    <strong>{{ summary.overdue }}</strong>
+                </div>
+                <div class="gantt-support-item">
+                    <span>Unscheduled</span>
+                    <strong>{{ summary.unscheduled }}</strong>
+                </div>
+            </div>
+        </article>
+
+        <article class="panel gantt-support-card">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Unscheduled Projects</p>
+                    <h3>Missing target dates</h3>
+                </div>
+            </div>
+
+                <div class="update-stack">
+                    {% if gantt.unscheduled_tasks %}
+                        {% for task in gantt.unscheduled_tasks %}
+                            <a class="update-item" href="{{ url_for('task_detail', task_id=task.id) }}">
+                                <strong>{{ task.project_name_display }}</strong>
+                                {% if task.has_timeline_update %}
+                                    <span class="timeline-updated-badge">Project Update</span>
+                                {% endif %}
+                                <span>{{ task.record_status_text }}</span>
+                                {% if task.record_status_meta %}
+                                    <span class="record-status-meta">{{ task.record_status_meta }}</span>
+                                {% endif %}
+                            </a>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state compact">
+                            <h3>No unscheduled projects</h3>
+                            <p>All visible projects already have a target date.</p>
+                        </div>
+                    {% endif %}
+                </div>
+        </article>
+    </section>
+{% endblock %}

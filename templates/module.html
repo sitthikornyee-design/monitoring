@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% from "_project_update_macros.html" import render_project_updates %}
+
+{% block title %}{{ module.name }} | Monitoring Workspace{% endblock %}
+{% block page_eyebrow %}Module{% endblock %}
+{% block page_title %}{{ module.name }}{% endblock %}
+{% block page_intro %}{{ module.description }}{% endblock %}
+
+{% block vendor_scripts %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+{% endblock %}
+
+{% block header_actions %}
+    <a class="button button-secondary" href="{{ url_for('report_view', category=module.name) }}">List Report</a>
+    <a class="button button-primary" href="{{ url_for('add_task', category=module.name) }}">New {{ module.short_name }} Project</a>
+{% endblock %}
+
+{% block page_tools %}
+    <section class="toolbar-strip">
+        <div class="toolbar-pill toolbar-pill-active">{{ module.short_name }}</div>
+        <div class="toolbar-pill">{{ summary.records }} Projects</div>
+        <div class="toolbar-pill">{{ summary.customers }} Customers</div>
+        <div class="toolbar-pill">{{ summary.open_issues }} Open Issues</div>
+        {% if timeline_sheet %}
+            <div class="toolbar-pill">Timeline Sheet</div>
+        {% endif %}
+    </section>
+{% endblock %}
+
+{% block content %}
+    <section class="summary-strip">
+        <article class="summary-tile">
+            <span class="summary-label">Active</span>
+            <strong>{{ summary.active }}</strong>
+        </article>
+        <article class="summary-tile">
+            <span class="summary-label">Blocked</span>
+            <strong>{{ summary.blocked }}</strong>
+        </article>
+        <article class="summary-tile summary-tile-alert">
+            <span class="summary-label">Open Issues</span>
+            <strong>{{ summary.open_issues }}</strong>
+        </article>
+        <article class="summary-tile">
+            <span class="summary-label">Overdue</span>
+            <strong>{{ summary.overdue }}</strong>
+        </article>
+    </section>
+
+    {% if timeline_sheet %}
+        <section class="panel timeline-sheet">
+            <div class="panel-heading">
+                <div>
+                    <p class="section-kicker">Timeline Sheet</p>
+                    <h3>{{ timeline_sheet.title }}</h3>
+                    <p>{{ timeline_sheet.intro }}</p>
+                </div>
+            </div>
+
+            <div class="timeline-milestone-row">
+                {% for milestone in timeline_sheet.milestones %}
+                    <span class="meta-chip">{{ milestone }}</span>
+                {% endfor %}
+            </div>
+
+            {% if timeline_sheet.rows %}
+                <div class="table-wrap table-wrap-flat timeline-table-wrap">
+                    <table class="task-table task-table-flat timeline-table">
+                        <thead>
+                            <tr>
+                                <th>Project</th>
+                                <th>Recorded</th>
+                                <th>Target go-live</th>
+                                <th>Timeline</th>
+                                <th>Assignee</th>
+                                <th>Next checkpoint</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in timeline_sheet.rows %}
+                                <tr>
+                                    <td>
+                                        <a class="table-title-link" href="{{ url_for('task_detail', task_id=row.id) }}">{{ row.title }}</a>
+                                        {% if row.has_timeline_update %}
+                                            <span class="timeline-updated-badge">Project Update</span>
+                                        {% endif %}
+                                        <p class="table-subline">{{ row.record_status_text }}</p>
+                                    </td>
+                                    <td>{{ row.opened_display }}</td>
+                                    <td>
+                                        <div class="timeline-target-cell">
+                                            <strong>{{ row.target_display }}</strong>
+                                            <span class="flag {{ row.due_tone }}">{{ row.due_label }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="timeline-progress">
+                                            <div class="timeline-track">
+                                                <span class="timeline-fill" style="width: {{ row.progress_percent }}%;"></span>
+                                            </div>
+                                            <div class="timeline-progress-meta">
+                                                <span>{{ row.progress_label }}</span>
+                                                <strong>{{ row.progress_percent }}%</strong>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="timeline-owner-cell">
+                                            <strong>{{ row.assignee_display }}</strong>
+                                            <span>{{ row.status_label }} | {{ row.priority }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="timeline-next-cell">
+                                            <strong>{{ row.latest_timeline_update }}</strong>
+                                            <span>{{ row.latest_timeline_stage }}{% if row.latest_timeline_date %} | {{ row.latest_timeline_date }}{% endif %}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state timeline-empty-state">
+                    <h3>No delivery projects yet</h3>
+                    <p>Add the first {{ module.short_name }} project to start filling the timeline sheet.</p>
+                    <a class="button button-primary" href="{{ url_for('add_task', category=module.name) }}">Add Project</a>
+                </div>
+            {% endif %}
+        </section>
+    {% endif %}
+
+    <section class="workspace-layout">
+        <div class="workspace-list">
+            {% if customer_sections %}
+                {% for section in customer_sections %}
+                    <article class="list-group-card">
+                        <div class="list-group-header">
+                            <div>
+                                <p class="list-group-eyebrow">{{ section.eyebrow }}</p>
+                                <h3 class="list-group-title">{{ section.title }}</h3>
+                                <p class="list-group-copy">{{ section.subtitle }}</p>
+                            </div>
+
+                            <div class="list-group-actions">
+                                <span class="list-group-count">{{ section.record_count }} projects</span>
+                                <span class="list-group-count">{{ section.issue_count }} issues</span>
+                            </div>
+                        </div>
+
+                        {% for bucket in section.status_groups %}
+                            <section class="status-cluster">
+                                <div class="status-cluster-header">
+                                    <div class="status-chip {{ bucket.slug }}">{{ bucket.status }}</div>
+                                    <span class="status-cluster-count">{{ bucket.count }}</span>
+                                </div>
+
+                                <div class="task-grid task-grid-head">
+                                    <span>Project</span>
+                                    <span>Assignee</span>
+                                    <span>Stage</span>
+                                    <span>Issue</span>
+                                    <span>Due date</span>
+                                    <span>Priority</span>
+                                </div>
+
+                                {% for task in bucket.tasks %}
+                                    <div class="task-grid-entry">
+                                        <a class="task-grid task-grid-row" href="{{ url_for('task_detail', task_id=task.id) }}">
+                                            <span class="task-name-cell">
+                                                <strong>{{ task.project_name_display }}</strong>
+                                                {% if task.has_timeline_update %}
+                                                    <span class="timeline-updated-badge">Project Update</span>
+                                                {% endif %}
+                                                <small>{{ task.record_status_text }}</small>
+                                                {% if task.record_status_meta %}
+                                                    <small class="record-status-meta">{{ task.record_status_meta }}</small>
+                                                {% endif %}
+                                            </span>
+                                            <span>{{ task.assignee_display }}</span>
+                                            <span>
+                                                {% if module.slug == "customer-pipeline" %}
+                                                    {{ task.display_pipeline_stage }}
+                                                {% elif module.slug == "business-support" %}
+                                                    {{ task.display_support_status }}
+                                                {% else %}
+                                                    {{ task.display_stage }}
+                                                {% endif %}
+                                            </span>
+                                            <span>{{ task.issue or "-" }}</span>
+                                            <span>{{ task.display_due_date }}</span>
+                                            <span><span class="priority-dot {{ task.priority|slugify }}"></span>{{ task.priority }}</span>
+                                        </a>
+                                        {{ render_project_updates(task, "inline") }}
+                                    </div>
+                                {% endfor %}
+
+                                <a class="task-add-row" href="{{ url_for('add_task', category=section.add_category, status=bucket.status_value) }}">+ Add Project</a>
+                            </section>
+                        {% endfor %}
+                    </article>
+                {% endfor %}
+            {% else %}
+                <article class="list-group-card list-group-card-starter">
+                    <div class="list-group-header">
+                        <div>
+                            <p class="list-group-eyebrow">Module Setup</p>
+                            <h3 class="list-group-title">{{ module.short_name }} starter workspace</h3>
+                            <p class="list-group-copy">This module is ready for projects. Add the first project, opportunity, or support case to turn this into the grouped list layout.</p>
+                        </div>
+
+                        <div class="list-group-actions">
+                            <span class="list-group-count">{{ module.weight }}% weight</span>
+                        </div>
+                    </div>
+
+                    <section class="status-cluster">
+                        <div class="status-cluster-header">
+                            <div class="status-chip to-do">Ready To Capture</div>
+                            <span class="status-cluster-count">0</span>
+                        </div>
+
+                        <div class="starter-stack">
+                            <p class="starter-copy">Recommended sections for this module:</p>
+                            <div class="chip-row">
+                                {% for section_name in module.sub_sections %}
+                                    <span class="meta-chip">{{ section_name }}</span>
+                                {% endfor %}
+                            </div>
+                            <a class="task-add-row" href="{{ url_for('add_task', category=module.name) }}">+ Add First Project</a>
+                        </div>
+                    </section>
+                </article>
+            {% endif %}
+        </div>
+
+        <aside class="workspace-sidepanel">
+            <article class="sidepanel-card">
+                <div class="sidepanel-heading">
+                    <p class="sidepanel-label">Stage Summary</p>
+                </div>
+                <canvas id="modulePrimaryChart"></canvas>
+            </article>
+
+            <article class="sidepanel-card">
+                <div class="sidepanel-heading">
+                    <p class="sidepanel-label">Status Mix</p>
+                </div>
+                <canvas id="moduleSecondaryChart"></canvas>
+            </article>
+
+            <article class="sidepanel-card">
+                <div class="sidepanel-heading">
+                    <p class="sidepanel-label">Recommended Fields</p>
+                </div>
+                <div class="update-stack">
+                    {% for field_name in module.main_fields %}
+                        <div class="update-item update-item-static">
+                            <strong>{{ field_name }}</strong>
+                            <span>Keep this visible in the workflow.</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </article>
+
+            {% if recent_updates %}
+                <article class="sidepanel-card">
+                    <div class="sidepanel-heading">
+                        <p class="sidepanel-label">Recent Timeline Updates</p>
+                    </div>
+                    <div class="update-stack">
+                        {% for task in recent_updates %}
+                            <a class="update-item" href="{{ url_for('task_detail', task_id=task.id) }}">
+                                <strong>{{ task.project_name_display }}</strong>
+                                {% if task.has_timeline_update %}
+                                    <span class="timeline-updated-badge">Project Update</span>
+                                {% endif %}
+                                <span>{{ task.record_status_text }}</span>
+                                {% if task.record_status_meta %}
+                                    <span class="record-status-meta">{{ task.record_status_meta }}</span>
+                                {% endif %}
+                            </a>
+                        {% endfor %}
+                    </div>
+                </article>
+            {% endif %}
+        </aside>
+    </section>
+{% endblock %}
+
+{% block page_scripts %}
+    <script id="module-chart-data" type="application/json">{{ module_charts|tojson }}</script>
+{% endblock %}

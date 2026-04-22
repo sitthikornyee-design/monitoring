@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Project Detail | Monitoring Workspace{% endblock %}
+{% block page_eyebrow %}Project Detail{% endblock %}
+{% block page_title %}{{ task.project_name_display }}{% endblock %}
+{% block page_intro %}A single project view with one set of main project information and a full stream of project processing updates.{% endblock %}
+
+{% block header_actions %}
+    <a class="button button-secondary" href="{{ url_for('edit_task', task_id=task.id) }}">Edit project</a>
+    <form method="post" action="{{ url_for('remove_task', task_id=task.id) }}" onsubmit="return confirm('Delete this project?');">
+        <input type="hidden" name="next" value="{{ task.module_slug }}">
+        <button class="button button-danger" type="submit">Delete</button>
+    </form>
+{% endblock %}
+
+{% block content %}
+    <section class="detail-hero">
+        <article class="panel">
+            <div class="detail-hero-head">
+                <div>
+                    <div class="task-meta-row">
+                        <span class="meta-chip">{{ task.project_id_display }}</span>
+                        <span class="meta-chip">Service: {{ task.service_display }}</span>
+                        <span class="badge status {{ task.status|slugify }}">{{ task.project_status_display }}</span>
+                        <span class="badge priority {{ task.priority|slugify }}">{{ task.priority }}</span>
+                    </div>
+                    <p class="task-meta-line">{{ task.customer_display }} | Owner: {{ task.owner_display }} | Contact: {{ task.contact_number_display }}</p>
+                </div>
+
+                <div class="detail-meta">
+                    <span>Created {{ task.display_created_at }}</span>
+                    <span>Updated {{ task.display_updated_at }}</span>
+                </div>
+            </div>
+
+            <div class="detail-highlight-grid">
+                <div class="detail-highlight-card">
+                    <span class="detail-highlight-label">Service</span>
+                    <strong>{{ task.service_display }}</strong>
+                </div>
+                <div class="detail-highlight-card">
+                    <span class="detail-highlight-label">Owner</span>
+                    <strong>{{ task.owner_display }}</strong>
+                </div>
+                <div class="detail-highlight-card">
+                    <span class="detail-highlight-label">Start date</span>
+                    <strong>{{ task.display_requested_date }}</strong>
+                </div>
+                <div class="detail-highlight-card">
+                    <span class="detail-highlight-label">Due date</span>
+                    <strong>{{ task.display_due_date }}</strong>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <section class="detail-layout">
+        <article class="panel panel-large">
+            <div class="detail-section">
+                <p class="section-kicker">Overview</p>
+                <h3>Project summary</h3>
+                <p>{{ task.description or "No project description has been added yet." }}</p>
+            </div>
+
+            <section class="detail-section">
+                <p class="section-kicker">Main Project Information</p>
+                <h3>Core fields</h3>
+
+                <div class="detail-section-grid">
+                    <div class="detail-box">
+                        <h3>Service</h3>
+                        <p>{{ task.service_display }}</p>
+                    </div>
+                    <div class="detail-box">
+                        <h3>Project name</h3>
+                        <p>{{ task.project_name_display }}</p>
+                    </div>
+                    <div class="detail-box">
+                        <h3>Project status</h3>
+                        <p>{{ task.project_status_display }}</p>
+                    </div>
+                    <div class="detail-box">
+                        <h3>Customer</h3>
+                        <p>{{ task.customer_display }}</p>
+                    </div>
+                    <div class="detail-box">
+                        <h3>Owner</h3>
+                        <p>{{ task.owner_display }}</p>
+                    </div>
+                    <div class="detail-box">
+                        <h3>Contact number</h3>
+                        <p>{{ task.contact_number_display }}</p>
+                    </div>
+                    <div class="detail-box">
+                        <h3>Start date</h3>
+                        <p>{{ task.display_requested_date }}</p>
+                    </div>
+                    <div class="detail-box">
+                        <h3>Due date</h3>
+                        <p>{{ task.display_due_date }}</p>
+                    </div>
+                    <div class="detail-box">
+                        <h3>Priority</h3>
+                        <p>{{ task.priority }}</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="detail-section">
+                <p class="section-kicker">Latest Processing Snapshot</p>
+                <h3>Latest project processing update</h3>
+
+                <div class="detail-section-grid">
+                    <div class="detail-box">
+                        <h3>Status</h3>
+                        <p>{{ task.latest_timeline_stage or task.project_status_display }}</p>
+                    </div>
+                    <div class="detail-box">
+                        <h3>Priority</h3>
+                        <p>{{ task.latest_processing_priority or task.priority }}</p>
+                    </div>
+                    <div class="detail-box">
+                        <h3>Processing start date</h3>
+                        <p>{{ task.latest_processing_start_date or "-" }}</p>
+                    </div>
+                    <div class="detail-box">
+                        <h3>Processing due date</h3>
+                        <p>{{ task.latest_processing_due_date or "-" }}</p>
+                    </div>
+                    <div class="detail-box detail-box-span">
+                        <h3>Latest note</h3>
+                        <p>{{ task.latest_timeline_update or "No processing update has been recorded yet." }}</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="detail-section" id="timeline-updates">
+                <p class="section-kicker">Project Processing Update</p>
+                <h3>Processing update history</h3>
+                <p>Every update stays inside the same project and is shown as a separate entry in the timeline.</p>
+                {% if timeline_updates %}
+                    <p class="timeline-update-meta">This project currently has {{ timeline_updates|length }} recorded processing entries.</p>
+                {% endif %}
+
+                <form class="timeline-update-form" method="post" action="{{ url_for('add_task_timeline_update', task_id=task.id) }}">
+                    <div class="timeline-update-grid">
+                        <label class="form-field">
+                            <span>Status</span>
+                            <select name="status">
+                                {% for status in status_choices %}
+                                    <option value="{{ status.value }}" {% if timeline_update_form.status == status.value %}selected{% endif %}>{{ status.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <label class="form-field">
+                            <span>Priority</span>
+                            <select name="priority">
+                                {% for priority in priority_options %}
+                                    <option value="{{ priority }}" {% if timeline_update_form.priority == priority %}selected{% endif %}>{{ priority }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <label class="form-field">
+                            <span>Start date</span>
+                            <input name="start_date" type="date" value="{{ timeline_update_form.start_date }}">
+                        </label>
+
+                        <label class="form-field">
+                            <span>Due date</span>
+                            <input name="due_date" type="date" value="{{ timeline_update_form.due_date }}">
+                        </label>
+
+                        <label class="form-field timeline-update-note">
+                            <span>Note</span>
+                            <textarea name="note" rows="4" placeholder="Describe the progress, problem, follow-up, or result for this update.">{{ timeline_update_form.note }}</textarea>
+                        </label>
+                    </div>
+
+                    <div class="timeline-update-actions">
+                        <button class="button button-primary" type="submit">Add processing update</button>
+                    </div>
+                </form>
+
+                {% if timeline_updates %}
+                    <div class="timeline-update-list">
+                        {% for update in timeline_updates %}
+                            <article class="timeline-update-card">
+                                <div class="timeline-update-card-head">
+                                    <div class="task-meta-row">
+                                        <span class="meta-chip">{{ update.timeline_entry_label }}</span>
+                                        <span class="badge status {{ update.status_value|slugify }}">{{ update.status_display }}</span>
+                                        <span class="badge priority {{ update.priority_display|slugify }}">{{ update.priority_display }}</span>
+                                    </div>
+                                    <span class="timeline-update-date">{{ update.display_created_at }}</span>
+                                </div>
+                                <h3>{{ update.update_title_display }}</h3>
+                                <p class="timeline-update-copy">{{ update.note_display }}</p>
+                                <p class="timeline-update-meta">Processing window: {{ update.display_start_date }} - {{ update.display_due_date }}</p>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state timeline-update-empty">
+                        <h3>No processing updates yet</h3>
+                        <p>Add the first processing update to start building the project timeline.</p>
+                    </div>
+                {% endif %}
+            </section>
+        </article>
+    </section>
+{% endblock %}

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Monitoring Workspace{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block vendor_scripts %}{% endblock %}
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="icon-rail">
+            <a class="rail-brand" href="{{ url_for('dashboard') }}">
+                <span class="rail-brand-badge">MW</span>
+                <span class="rail-brand-label">Workspace</span>
+            </a>
+
+            <nav class="rail-nav">
+                <a class="rail-link {% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}" title="Dashboard">
+                    <span class="rail-link-glyph">H</span>
+                    <span class="rail-link-label">Home</span>
+                </a>
+                <a class="rail-link {% if active_page in ['reports', 'calendar', 'gantt', 'table'] or active_page in monitoring_modules|map(attribute='slug')|list %}active{% endif %}" href="{{ url_for('report_view') }}" title="List">
+                    <span class="rail-link-glyph">L</span>
+                    <span class="rail-link-label">List</span>
+                </a>
+                <a class="rail-link {% if active_page == 'board' %}active{% endif %}" href="{{ url_for('board_view') }}" title="Board">
+                    <span class="rail-link-glyph">B</span>
+                    <span class="rail-link-label">Board</span>
+                </a>
+                <a class="rail-link {% if active_page == 'settings' %}active{% endif %}" href="{{ url_for('settings_view') }}" title="Settings">
+                    <span class="rail-link-glyph">S</span>
+                    <span class="rail-link-label">Setup</span>
+                </a>
+            </nav>
+
+            <div class="rail-footer">
+                <span class="rail-user">MW</span>
+            </div>
+        </aside>
+
+        <aside class="workspace-sidebar">
+            <div class="workspace-switcher">
+                <div class="workspace-avatar">M</div>
+                <div>
+                    <p class="workspace-label">Workspace</p>
+                    <h2 class="workspace-name">Monitoring Workspace</h2>
+                </div>
+            </div>
+
+            <a class="create-button" href="{{ url_for('add_task') }}" data-create-modal-trigger>+ New Project</a>
+
+            <section class="sidebar-group">
+                <p class="sidebar-heading">Main Views</p>
+                <nav class="sidebar-list">
+                    <a class="sidebar-item {% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">Home</a>
+                    <a class="sidebar-item {% if active_page == 'board' %}active{% endif %}" href="{{ url_for('board_view') }}">All Projects</a>
+                </nav>
+            </section>
+
+            <section class="sidebar-group">
+                <p class="sidebar-heading">Modules</p>
+                <nav class="sidebar-list">
+                    {% for module in monitoring_modules %}
+                        <a class="sidebar-item {% if active_page == module.slug %}active{% endif %}" href="{{ url_for('module_view', module_slug=module.slug) }}">
+                            <span>{{ module.short_name }}</span>
+                            <small>{{ module.weight }}%</small>
+                        </a>
+                    {% endfor %}
+                </nav>
+            </section>
+
+            <section class="sidebar-group">
+                <p class="sidebar-heading">Alert Watch</p>
+                <div class="sidebar-note-list">
+                    {% for alert in alert_suggestions[:4] %}
+                        <div class="sidebar-note">{{ alert }}</div>
+                    {% endfor %}
+                </div>
+            </section>
+        </aside>
+
+        <div class="workspace-stage">
+            <header class="global-toolbar">
+                <div class="toolbar-left">
+                    <div class="toolbar-chip">
+                        <span class="toolbar-chip-dot"></span>
+                        <span>{{ workspace_snapshot_date }}</span>
+                    </div>
+                </div>
+
+                <label class="search-shell" for="workspace-search">
+                    <span class="search-icon">Q</span>
+                    <input id="workspace-search" type="text" placeholder="Search workspace Ctrl K">
+                </label>
+
+                <div class="toolbar-right">
+                    <a class="toolbar-action" href="{{ url_for('board_view') }}">Board</a>
+                    <a class="toolbar-action" href="{{ url_for('report_view') }}">All Projects</a>
+                    <a class="toolbar-avatar" href="{{ url_for('settings_view') }}">MW</a>
+                </div>
+            </header>
+
+            <div class="workspace-banner">
+                <span>Local monitoring mode keeps main project information and project update history visible in one shared workspace.</span>
+                <div class="workspace-banner-actions">
+                    <a class="workspace-banner-link" href="{{ url_for('report_view') }}">Open list</a>
+                    <a class="workspace-banner-link" href="{{ url_for('add_task') }}">New project</a>
+                </div>
+            </div>
+
+            <main class="workspace-main">
+                <section class="page-header">
+                    <div>
+                        <p class="page-eyebrow">{% block page_eyebrow %}Workspace{% endblock %}</p>
+                        <h1 class="page-title">{% block page_title %}Monitoring Workspace{% endblock %}</h1>
+                        <p class="page-intro">{% block page_intro %}{% endblock %}</p>
+                    </div>
+
+                    <div class="page-header-actions">
+                        {% block header_actions %}{% endblock %}
+                    </div>
+                </section>
+
+                <section class="channel-tabs-bar">
+                    <div class="channel-tabs-scroll">
+                        <a class="channel-add-button" href="{{ url_for('add_task') }}">New Project</a>
+
+                        <nav class="channel-tabs">
+                            <a class="channel-tab {% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                                <span class="channel-tab-icon">O</span>
+                                <span>Overview</span>
+                            </a>
+                            <a class="channel-tab {% if active_page == 'reports' or active_page in monitoring_modules|map(attribute='slug')|list %}active{% endif %}" href="{{ url_for('report_view') }}">
+                                <span class="channel-tab-icon">L</span>
+                                <span>List</span>
+                            </a>
+                            <a class="channel-tab {% if active_page == 'board' %}active{% endif %}" href="{{ url_for('board_view') }}">
+                                <span class="channel-tab-icon">B</span>
+                                <span>Board</span>
+                            </a>
+                            <a class="channel-tab {% if active_page == 'calendar' %}active{% endif %}" href="{{ url_for('calendar_view') }}">
+                                <span class="channel-tab-icon">C</span>
+                                <span>Calendar</span>
+                            </a>
+                            <a class="channel-tab {% if active_page == 'gantt' %}active{% endif %}" href="{{ url_for('gantt_view') }}">
+                                <span class="channel-tab-icon">G</span>
+                                <span>Gantt</span>
+                            </a>
+                            <a class="channel-tab {% if active_page == 'table' %}active{% endif %}" href="{{ url_for('table_view') }}">
+                                <span class="channel-tab-icon">T</span>
+                                <span>Table</span>
+                            </a>
+                            <span class="channel-tab channel-tab-add-view">
+                                <span class="channel-tab-plus">+</span>
+                                <span>View</span>
+                            </span>
+                        </nav>
+                    </div>
+                </section>
+
+                {% block page_tools %}{% endblock %}
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <section class="flash-stack">
+                            {% for category, message in messages %}
+                                <div class="flash-message {{ category }}">{{ message }}</div>
+                            {% endfor %}
+                        </section>
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <div class="create-modal-shell" id="createModalShell" hidden>
+        <div class="create-modal-backdrop" data-create-modal-close></div>
+        <section class="create-modal" role="dialog" aria-modal="true" aria-labelledby="createModalHeading">
+            <header class="create-modal-topbar">
+                <h2 class="sr-only" id="createModalHeading">Create project</h2>
+                <nav class="create-modal-tabs" aria-label="Create type">
+                    <button class="create-modal-tab active" type="button">Project</button>
+                    <button class="create-modal-tab" type="button" disabled>Doc</button>
+                    <button class="create-modal-tab" type="button" disabled>Reminder</button>
+                    <button class="create-modal-tab" type="button" disabled>Whiteboard</button>
+                    <button class="create-modal-tab" type="button" disabled>Dashboard</button>
+                </nav>
+
+                <div class="create-modal-topbar-actions">
+                    <a class="create-modal-icon-link" id="createModalFullEditor" href="{{ url_for('add_task') }}" data-create-modal-bypass title="Open full editor">Open</a>
+                    <button class="create-modal-close" type="button" data-create-modal-close aria-label="Close create dialog">x</button>
+                </div>
+            </header>
+
+            <form class="create-modal-form" method="post" action="{{ url_for('add_task') }}">
+                <div class="create-modal-body">
+                    <div class="create-modal-context-row">
+                        <label class="create-modal-select">
+                            <span class="sr-only">Service</span>
+                            <select name="kpi_category" id="createModalCategory">
+                                {% for category in kpi_categories %}
+                                    <option value="{{ category.name }}">{{ category.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <label class="create-modal-select create-modal-select-type">
+                            <span class="sr-only">Entry type</span>
+                            <select disabled>
+                                <option selected>Project</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="create-modal-title-wrap">
+                        <label class="sr-only" for="createModalTitleInput">Project name</label>
+                        <input id="createModalTitleInput" name="title" class="create-modal-title-input" type="text" placeholder="Project Name" required>
+                    </div>
+
+                    <div class="create-modal-editor">
+                        <label class="sr-only" for="createModalDescription">Project description</label>
+                        <textarea id="createModalDescription" name="description" rows="4" placeholder="Add project description"></textarea>
+                        <button class="create-modal-ai" type="button">Write with AI</button>
+                    </div>
+
+                    <div class="create-modal-pill-row">
+                        <label class="create-pill create-pill-status">
+                            <span>Project status</span>
+                            <select name="status" id="createModalStatus">
+                                {% for status in status_choices %}
+                                    <option value="{{ status.value }}">{{ status.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <label class="create-pill">
+                            <span>Owner</span>
+                            <input name="owner" type="text" placeholder="Project owner">
+                        </label>
+
+                        <label class="create-pill">
+                            <span>Priority</span>
+                            <select name="priority">
+                                {% for priority in priority_options %}
+                                    <option value="{{ priority }}" {% if priority == "Medium" %}selected{% endif %}>{{ priority }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <label class="create-pill">
+                            <span>Customer</span>
+                            <input name="company_name" type="text" placeholder="Customer / account">
+                        </label>
+
+                        <label class="create-pill">
+                            <span>Contact</span>
+                            <input name="contact_number" type="text" placeholder="Contact number">
+                        </label>
+                    </div>
+
+                    <div class="create-modal-extra-grid create-modal-primary-grid">
+                        <label class="create-modal-stack-field">
+                            <span>Start date</span>
+                            <input name="requested_date" type="date">
+                        </label>
+
+                        <label class="create-modal-stack-field">
+                            <span>Due date</span>
+                            <input name="due_date" type="date">
+                        </label>
+
+                        <label class="create-modal-stack-field">
+                            <span>Progress %</span>
+                            <input name="progress_percent" type="number" min="0" max="100" step="0.1" placeholder="0 - 100">
+                        </label>
+
+                        <label class="create-modal-stack-field">
+                            <span>Department</span>
+                            <input name="department" type="text" placeholder="Owning team">
+                        </label>
+                    </div>
+
+                    <section class="create-modal-fields">
+                        <div class="create-modal-fields-header">
+                            <h3>Fields</h3>
+                            <button class="create-modal-link-button" type="button" id="createModalMoreFields">+ Create new field</button>
+                        </div>
+
+                        <div class="create-modal-extra-fields" id="createModalExtraFields" hidden>
+                            <div class="create-modal-extra-grid">
+                                <label class="create-modal-stack-field">
+                                    <span>Current stage</span>
+                                    <input name="stage" type="text" placeholder="Requirement Gathering, UAT, launch prep...">
+                                </label>
+
+                                <label class="create-modal-stack-field">
+                                    <span>Next action</span>
+                                    <textarea name="next_step" rows="2" placeholder="What should happen next?"></textarea>
+                                </label>
+
+                                <label class="create-modal-stack-field">
+                                    <span>Open blocker</span>
+                                    <textarea name="issue" rows="2" placeholder="Capture blockers or risk"></textarea>
+                                </label>
+
+                                <label class="create-modal-stack-field">
+                                    <span>Tags</span>
+                                    <input name="tags" type="text" placeholder="urgent, testing, follow-up">
+                                </label>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <footer class="create-modal-footer">
+                    <div class="create-modal-footer-left">
+                        <button class="create-modal-template-button" type="button">Templates</button>
+                    </div>
+
+                    <div class="create-modal-footer-right">
+                        <div class="create-modal-footer-meta">
+                            <button class="create-modal-icon-button" type="button" aria-label="Attach file">Attach</button>
+                            <span class="create-modal-meta-pill">1</span>
+                        </div>
+
+                        <a class="button button-ghost" href="{{ url_for('add_task') }}" id="createModalOpenEditor" data-create-modal-bypass>Open full editor</a>
+                        <button class="button button-primary create-modal-submit" type="submit">Create Project</button>
+                    </div>
+                </footer>
+            </form>
+        </section>
+    </div>
+
+    {% block page_scripts %}{% endblock %}
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</body>
+</html>

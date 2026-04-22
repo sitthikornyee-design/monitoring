@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% from "_project_update_macros.html" import render_project_updates %}
+
+{% block title %}Project Board | Monitoring Workspace{% endblock %}
+{% block page_eyebrow %}Board{% endblock %}
+{% block page_title %}Project Board{% endblock %}
+{% block page_intro %}A board view for scanning projects by overall status while keeping every project update visible under each project card.{% endblock %}
+
+{% block header_actions %}
+    <a class="button button-primary" href="{{ url_for('add_task') }}">New Project</a>
+{% endblock %}
+
+{% block page_tools %}
+    <section class="filter-toolbar">
+        <form class="filter-toolbar-form" method="get">
+            <div class="filter-control filter-control-search">
+                <label for="search">Search</label>
+                <input id="search" name="search" type="text" placeholder="Customer, assignee, issue, next action" value="{{ filters.search }}">
+            </div>
+
+            <div class="filter-control">
+                <label for="category">Service</label>
+                <select id="category" name="category">
+                    <option value="">All services</option>
+                    {% for category in kpi_categories %}
+                        <option value="{{ category.name }}" {% if filters.category == category.name %}selected{% endif %}>{{ category.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-control">
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="">All statuses</option>
+                    {% for status in status_choices %}
+                        <option value="{{ status.value }}" {% if filters.status == status.value %}selected{% endif %}>{{ status.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button class="button button-secondary button-small" type="submit">Apply</button>
+            <a class="button button-ghost button-small" href="{{ url_for('board_view') }}">Reset</a>
+        </form>
+    </section>
+{% endblock %}
+
+{% block content %}
+    <section class="summary-strip">
+        <article class="summary-tile">
+            <span class="summary-label">Projects In Board</span>
+            <strong>{{ filtered_task_count }}</strong>
+        </article>
+        {% for status in status_options %}
+            <article class="summary-tile">
+                <span class="summary-label">{{ status_labels[status] }}</span>
+                <strong>{{ grouped_tasks[status]|length }}</strong>
+            </article>
+        {% endfor %}
+    </section>
+
+    <section class="board-grid">
+        {% for status in status_options %}
+            {% set tasks = grouped_tasks[status] %}
+            <article class="board-column {{ status|slugify }}">
+                <div class="board-column-header">
+                    <div>
+                        <h3 class="column-status">{{ status_labels[status] }}</h3>
+                        <p class="column-count">{{ tasks|length }} projects</p>
+                    </div>
+                    <a class="column-add-link" href="{{ url_for('add_task', status=status) }}">Add Project</a>
+                </div>
+
+                <div class="board-column-body">
+                    {% if tasks %}
+                        {% for task in tasks %}
+                            <article class="task-card {% if task.attention_count > 0 %}attention{% endif %}">
+                                <div class="task-card-head">
+                                    <div>
+                                        <a class="task-title-link" href="{{ url_for('task_detail', task_id=task.id) }}">{{ task.project_name_display }}</a>
+                                        <p class="task-meta-line">{{ task.record_status_text }}</p>
+                                        {% if task.record_status_meta %}
+                                            <p class="task-meta-line record-status-meta">{{ task.record_status_meta }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <span class="badge priority {{ task.priority|slugify }}">{{ task.priority }}</span>
+                                </div>
+
+                                <div class="detail-pair">
+                                    <span class="detail-label">Project updates</span>
+                                    <span class="detail-value">{{ task.timeline_update_count }}</span>
+                                </div>
+
+                                {{ render_project_updates(task, "card") }}
+
+                                <div class="detail-pair">
+                                    <span class="detail-label">Owner</span>
+                                    <span class="detail-value">{{ task.owner_display }}</span>
+                                </div>
+
+                                <div class="detail-pair">
+                                    <span class="detail-label">Due date</span>
+                                    <span class="detail-value">{{ task.display_due_date }}</span>
+                                </div>
+
+                                <div class="flag-row">
+                                    {% if task.is_overdue %}
+                                        <span class="flag danger">Overdue</span>
+                                    {% endif %}
+                                    {% if task.is_blocked %}
+                                        <span class="flag warning">Blocked</span>
+                                    {% endif %}
+                                    {% if task.has_open_issue %}
+                                        <span class="flag danger">{{ task.display_severity }}</span>
+                                    {% endif %}
+                                </div>
+                            </article>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state compact">
+                            <h3>No projects</h3>
+                            <p>Nothing is currently in {{ status_labels[status] }}.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </article>
+        {% endfor %}
+    </section>
+{% endblock %}
