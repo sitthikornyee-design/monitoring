@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import os
 from datetime import date, datetime
-from pathlib import Path
 
 from flask import Flask, abort, flash, jsonify, redirect, render_template, request, url_for
 
+from config import get_config, validate_config
 from services.activity_service import (
     build_creation_log,
     build_deletion_log,
@@ -28,18 +29,24 @@ from services.project_service import (
 from services.repository import SQLiteRepository
 
 app = Flask(__name__)
-app.secret_key = "crm-monitoring-dashboard-local"
+app.config.from_object(get_config())
+validate_config(app.config)
+app.secret_key = app.config["SECRET_KEY"]
 
-BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
-RUNTIME_DIR = BASE_DIR / "runtime"
-DATABASE_PATH = RUNTIME_DIR / "workspace.sqlite3"
-SCHEMA_PATH = BASE_DIR / "schema.sql"
-repository = SQLiteRepository(DATABASE_PATH, SCHEMA_PATH, seed_dir=DATA_DIR)
+BASE_DIR = app.config["BASE_DIR"]
+DATA_DIR = app.config["DATA_DIR"]
+RUNTIME_DIR = app.config["RUNTIME_DIR"]
+DATABASE_PATH = app.config["DATABASE_PATH"]
+SCHEMA_PATH = app.config["SCHEMA_PATH"]
+repository = SQLiteRepository(
+    DATABASE_PATH,
+    SCHEMA_PATH,
+    seed_dir=DATA_DIR if app.config["SEED_DATA"] else None,
+)
 
-DEFAULT_ACTOR = "Yee"
-WORKSPACE_NAME = "Sitthikorn yee's Workspace"
-SPACE_NAME = "Team Space"
+DEFAULT_ACTOR = app.config["DEFAULT_ACTOR"]
+WORKSPACE_NAME = app.config["WORKSPACE_NAME"]
+SPACE_NAME = app.config["SPACE_NAME"]
 
 
 def now_iso() -> str:
@@ -717,4 +724,8 @@ def add_comment(project_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host=os.getenv("FLASK_RUN_HOST", "127.0.0.1"),
+        port=int(os.getenv("PORT", "5000")),
+        debug=app.config["DEBUG"],
+    )
