@@ -116,6 +116,13 @@ class JsonRepository:
     def new_id(self, prefix: str) -> str:
         return f"{prefix}-{uuid4().hex[:8]}"
 
+    def healthcheck(self):
+        self.load_workspace_values()
+        return {
+            "storage": "json",
+            "status": "ok",
+        }
+
 
 class SQLiteRepository:
     def __init__(self, db_path: Path, schema_path: Path, seed_dir: Path | None = None):
@@ -226,3 +233,12 @@ class SQLiteRepository:
 
     def new_id(self, prefix: str) -> str:
         return f"{prefix}-{uuid4().hex[:8]}"
+
+    def healthcheck(self):
+        with self._connect() as connection:
+            connection.execute("SELECT 1").fetchone()
+        return {
+            "storage": "sqlite",
+            "status": "ok",
+            "database_path": str(self.db_path),
+        }

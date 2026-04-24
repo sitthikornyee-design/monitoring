@@ -245,6 +245,35 @@ def dashboard():
     )
 
 
+@app.get("/healthz")
+def healthcheck():
+    try:
+        storage = repository.healthcheck()
+    except Exception as exc:  # pragma: no cover - defensive operational path
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "app_env": app.config["APP_ENV"],
+                    "status": "unhealthy",
+                    "error": str(exc),
+                    "timestamp": now_iso(),
+                }
+            ),
+            503,
+        )
+
+    return jsonify(
+        {
+            "ok": True,
+            "app_env": app.config["APP_ENV"],
+            "status": "healthy",
+            "storage": storage,
+            "timestamp": now_iso(),
+        }
+    )
+
+
 def render_project_view(template_name, current_view):
     _, computed_projects = build_workspace_view()
     filters = build_filters()
@@ -295,11 +324,6 @@ def project_detail(project_id):
     if not project:
         abort(404)
 
-    comments = sorted(
-        [item for item in workspace["comments"] if item["project_id"] == project_id],
-        key=lambda item: item.get("created_at", ""),
-        reverse=True,
-    )
     activity_logs = sorted(
         [item for item in workspace["activity_logs"] if item["project_id"] == project_id],
         key=lambda item: item.get("updated_at", ""),
@@ -309,10 +333,9 @@ def project_detail(project_id):
     return render_template(
         "projects/detail.html",
         page_title=project["project_name"],
-        page_intro="Project summary, action tracking, comments, and audit history for this client delivery stream.",
+        page_intro="Project summary, action tracking, and audit history for this client delivery stream.",
         page_key="projects",
         project=project,
-        comments=comments,
         activity_logs=activity_logs,
     )
 
@@ -683,45 +706,6 @@ def delete_action(action_id):
     save_workspace(projects, actions, comments, activity_logs)
     flash("Action deleted.", "success")
     return redirect(url_for("project_detail", project_id=project_id))
-
-
-@app.route("/projects/<project_id>/comments", methods=["POST"])
-def add_comment(project_id):
-    projects, actions, comments, activity_logs = repository.load_workspace_values()
-    project = next((item for item in projects if item["id"] == project_id), None)
-    if not project:
-        abort(404)
-
-    comment_text = request.form.get("comment_text", "").strip()
-    action_id = request.form.get("action_id", "").strip()
-    if not comment_text:
-        flash("Comment cannot be empty.", "error")
-        return redirect(url_for("project_detail", project_id=project_id))
-
-    comment = {
-        "id": repository.new_id("comment"),
-        "project_id": project_id,
-        "action_id": action_id,
-        "comment_text": comment_text,
-        "created_by": current_actor(),
-        "created_at": now_iso(),
-    }
-    comments.append(comment)
-    activity_logs.insert(
-        0,
-        build_creation_log(
-            project_id=project_id,
-            action_id=action_id,
-            field_name="comment_added",
-            new_value=comment_text,
-            updated_by=current_actor(),
-            comment="Added a project comment.",
-        ),
-    )
-    save_workspace(projects, actions, comments, activity_logs)
-    flash("Comment added.", "success")
-    return redirect(url_for("project_detail", project_id=project_id))
-
 
 if __name__ == "__main__":
     app.run(
