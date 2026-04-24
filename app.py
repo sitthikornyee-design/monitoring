@@ -33,14 +33,10 @@ app.config.from_object(get_config())
 validate_config(app.config)
 app.secret_key = app.config["SECRET_KEY"]
 
-BASE_DIR = app.config["BASE_DIR"]
 DATA_DIR = app.config["DATA_DIR"]
-RUNTIME_DIR = app.config["RUNTIME_DIR"]
-DATABASE_PATH = app.config["DATABASE_PATH"]
-SCHEMA_PATH = app.config["SCHEMA_PATH"]
 repository = SQLiteRepository(
-    DATABASE_PATH,
-    SCHEMA_PATH,
+    app.config["DATABASE_PATH"],
+    app.config["SCHEMA_PATH"],
     seed_dir=DATA_DIR if app.config["SEED_DATA"] else None,
 )
 
@@ -57,8 +53,8 @@ def load_workspace():
     return repository.load_workspace()
 
 
-def save_workspace(projects, actions, comments, activity_logs) -> None:
-    repository.save_workspace(projects, actions, comments, activity_logs)
+def save_workspace(projects, actions, activity_logs) -> None:
+    repository.save_workspace(projects, actions, activity_logs)
 
 
 def build_workspace_view():
@@ -233,15 +229,13 @@ def home():
 
 @app.route("/dashboard")
 def dashboard():
-    workspace, computed_projects = build_workspace_view()
+    _, computed_projects = build_workspace_view()
     dashboard_data = build_dashboard_data(computed_projects)
     return render_template(
         "dashboard/index.html",
         page_title="Dashboard",
-        page_intro="A CRM-style monitoring dashboard for project health, action ownership, deadlines, and delivery risk.",
         page_key="dashboard",
         dashboard=dashboard_data,
-        project_count=len(computed_projects),
     )
 
 
@@ -285,7 +279,6 @@ def render_project_view(template_name, current_view):
     return render_template(
         template_name,
         page_title="Client Projects",
-        page_intro="Manage project and action data from one shared workspace with list, table, board, and gantt views.",
         page_key="projects",
         current_view=current_view,
         projects=filtered_projects,
@@ -333,7 +326,6 @@ def project_detail(project_id):
     return render_template(
         "projects/detail.html",
         page_title=project["project_name"],
-        page_intro="Project summary, action tracking, and audit history for this client delivery stream.",
         page_key="projects",
         project=project,
         activity_logs=activity_logs,
@@ -343,7 +335,7 @@ def project_detail(project_id):
 @app.route("/projects/new", methods=["GET", "POST"])
 def new_project():
     if request.method == "POST":
-        projects, actions, comments, activity_logs = repository.load_workspace_values()
+        projects, actions, activity_logs = repository.load_workspace_values()
         payload = build_project_payload(request.form)
         errors = validate_project_payload(payload)
         if errors:
@@ -352,7 +344,6 @@ def new_project():
             return render_template(
                 "projects/project_form.html",
                 page_title="Create Project",
-                page_intro="Capture the main project information before you start adding actions.",
                 page_key="projects",
                 form_mode="create",
                 form_action=url_for("new_project"),
@@ -378,14 +369,13 @@ def new_project():
                 comment=f"Created project {project['project_name']}.",
             ),
         )
-        save_workspace(projects, actions, comments, activity_logs)
+        save_workspace(projects, actions, activity_logs)
         flash("Project created.", "success")
         return redirect(url_for("project_detail", project_id=project["id"]))
 
     return render_template(
         "projects/project_form.html",
         page_title="Create Project",
-        page_intro="Capture the main project information before you start adding actions.",
         page_key="projects",
         form_mode="create",
         form_action=url_for("new_project"),
@@ -395,7 +385,7 @@ def new_project():
 
 @app.route("/projects/<project_id>/edit", methods=["GET", "POST"])
 def edit_project(project_id):
-    projects, actions, comments, activity_logs = repository.load_workspace_values()
+    projects, actions, activity_logs = repository.load_workspace_values()
     existing = next((item for item in projects if item["id"] == project_id), None)
     if not existing:
         abort(404)
@@ -409,7 +399,6 @@ def edit_project(project_id):
             return render_template(
                 "projects/project_form.html",
                 page_title="Edit Project",
-                page_intro="Update project information without changing the action history.",
                 page_key="projects",
                 form_mode="edit",
                 form_action=url_for("edit_project", project_id=project_id),
@@ -440,14 +429,13 @@ def edit_project(project_id):
                 projects[index] = updated
                 break
         activity_logs = logs + activity_logs
-        save_workspace(projects, actions, comments, activity_logs)
+        save_workspace(projects, actions, activity_logs)
         flash("Project updated.", "success")
         return redirect(url_for("project_detail", project_id=project_id))
 
     return render_template(
         "projects/project_form.html",
         page_title="Edit Project",
-        page_intro="Update project information without changing the action history.",
         page_key="projects",
         form_mode="edit",
         form_action=url_for("edit_project", project_id=project_id),
@@ -457,7 +445,7 @@ def edit_project(project_id):
 
 @app.route("/projects/<project_id>/actions/new", methods=["GET", "POST"])
 def new_action(project_id):
-    projects, actions, comments, activity_logs = repository.load_workspace_values()
+    projects, actions, activity_logs = repository.load_workspace_values()
     project = next((item for item in projects if item["id"] == project_id), None)
     if not project:
         abort(404)
@@ -474,7 +462,6 @@ def new_action(project_id):
             return render_template(
                 "projects/action_form.html",
                 page_title="Add Action",
-                page_intro="Actions drive project progress, risk, and activity logs.",
                 page_key="projects",
                 form_mode="create",
                 form_action=url_for("new_action", project_id=project_id),
@@ -509,14 +496,13 @@ def new_action(project_id):
         after_metrics = compute_project_metrics(projects, actions)
         after_project = next(item for item in after_metrics if item["id"] == target_project_id)
         activity_logs = build_rollup_logs(before_target_project, after_project, target_project_id, current_actor()) + activity_logs
-        save_workspace(projects, actions, comments, activity_logs)
+        save_workspace(projects, actions, activity_logs)
         flash("Action created.", "success")
         return redirect(url_for("project_detail", project_id=target_project_id))
 
     return render_template(
         "projects/action_form.html",
         page_title="Add Action",
-        page_intro="Actions drive project progress, risk, and activity logs.",
         page_key="projects",
         form_mode="create",
         form_action=url_for("new_action", project_id=project_id),
@@ -528,7 +514,7 @@ def new_action(project_id):
 
 @app.route("/actions/<action_id>/edit", methods=["GET", "POST"])
 def edit_action(action_id):
-    projects, actions, comments, activity_logs = repository.load_workspace_values()
+    projects, actions, activity_logs = repository.load_workspace_values()
     existing = next((item for item in actions if item["id"] == action_id), None)
     if not existing:
         abort(404)
@@ -550,7 +536,6 @@ def edit_action(action_id):
             return render_template(
                 "projects/action_form.html",
                 page_title="Edit Action",
-                page_intro="Update an action and automatically recalculate project status and progress.",
                 page_key="projects",
                 form_mode="edit",
                 form_action=url_for("edit_action", action_id=action_id),
@@ -598,14 +583,13 @@ def edit_action(action_id):
             rollup_logs.extend(build_rollup_logs(before_new_project, after_new_project, new_project_id, current_actor()))
 
         activity_logs = logs + rollup_logs + activity_logs
-        save_workspace(projects, actions, comments, activity_logs)
+        save_workspace(projects, actions, activity_logs)
         flash("Action updated.", "success")
         return redirect(url_for("project_detail", project_id=new_project_id))
 
     return render_template(
         "projects/action_form.html",
         page_title="Edit Action",
-        page_intro="Update an action and automatically recalculate project status and progress.",
         page_key="projects",
         form_mode="edit",
         form_action=url_for("edit_action", action_id=action_id),
@@ -617,7 +601,7 @@ def edit_action(action_id):
 
 @app.route("/actions/<action_id>/status", methods=["POST"])
 def update_action_status(action_id):
-    projects, actions, comments, activity_logs = repository.load_workspace_values()
+    projects, actions, activity_logs = repository.load_workspace_values()
     existing = next((item for item in actions if item["id"] == action_id), None)
     if not existing:
         abort(404)
@@ -662,7 +646,7 @@ def update_action_status(action_id):
     after_project = next(item for item in after_metrics if item["id"] == project_id)
     rollup_logs = build_rollup_logs(before_project, after_project, project_id, current_actor())
     activity_logs = logs + rollup_logs + activity_logs
-    save_workspace(projects, actions, comments, activity_logs)
+    save_workspace(projects, actions, activity_logs)
 
     return jsonify(
         {
@@ -678,7 +662,7 @@ def update_action_status(action_id):
 
 @app.route("/actions/<action_id>/delete", methods=["POST"])
 def delete_action(action_id):
-    projects, actions, comments, activity_logs = repository.load_workspace_values()
+    projects, actions, activity_logs = repository.load_workspace_values()
     existing = next((item for item in actions if item["id"] == action_id), None)
     if not existing:
         abort(404)
@@ -703,7 +687,7 @@ def delete_action(action_id):
     after_metrics = compute_project_metrics(projects, actions)
     after_project = next(item for item in after_metrics if item["id"] == project_id)
     activity_logs = build_rollup_logs(before_project, after_project, project_id, current_actor()) + activity_logs
-    save_workspace(projects, actions, comments, activity_logs)
+    save_workspace(projects, actions, activity_logs)
     flash("Action deleted.", "success")
     return redirect(url_for("project_detail", project_id=project_id))
 

@@ -37,14 +37,6 @@ COLLECTION_COLUMNS = {
         "created_at",
         "updated_at",
     ),
-    "comments": (
-        "id",
-        "project_id",
-        "action_id",
-        "comment_text",
-        "created_by",
-        "created_at",
-    ),
     "activity_logs": (
         "id",
         "project_id",
@@ -58,70 +50,8 @@ COLLECTION_COLUMNS = {
     ),
 }
 
-DELETE_ORDER = ("comments", "activity_logs", "actions", "projects")
-INSERT_ORDER = ("projects", "actions", "comments", "activity_logs")
-
-
-class JsonRepository:
-    def __init__(self, data_dir: Path):
-        self.data_dir = Path(data_dir)
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        self._ensure_file("projects.json")
-        self._ensure_file("actions.json")
-        self._ensure_file("comments.json")
-        self._ensure_file("activity_logs.json")
-
-    def _ensure_file(self, filename: str) -> None:
-        path = self.data_dir / filename
-        if not path.exists():
-            path.write_text("[]", encoding="utf-8")
-
-    def _path(self, filename: str) -> Path:
-        return self.data_dir / filename
-
-    def load_collection(self, filename: str):
-        path = self._path(filename)
-        raw = path.read_text(encoding="utf-8").strip()
-        if not raw:
-            return []
-        return json.loads(raw)
-
-    def save_collection(self, filename: str, rows) -> None:
-        path = self._path(filename)
-        path.write_text(json.dumps(rows, indent=2, ensure_ascii=False), encoding="utf-8")
-
-    def load_workspace(self):
-        projects, actions, comments, activity_logs = self.load_workspace_values()
-        return {
-            "projects": projects,
-            "actions": actions,
-            "comments": comments,
-            "activity_logs": activity_logs,
-        }
-
-    def load_workspace_values(self):
-        return (
-            self.load_collection("projects.json"),
-            self.load_collection("actions.json"),
-            self.load_collection("comments.json"),
-            self.load_collection("activity_logs.json"),
-        )
-
-    def save_workspace(self, projects, actions, comments, activity_logs) -> None:
-        self.save_collection("projects.json", projects)
-        self.save_collection("actions.json", actions)
-        self.save_collection("comments.json", comments)
-        self.save_collection("activity_logs.json", activity_logs)
-
-    def new_id(self, prefix: str) -> str:
-        return f"{prefix}-{uuid4().hex[:8]}"
-
-    def healthcheck(self):
-        self.load_workspace_values()
-        return {
-            "storage": "json",
-            "status": "ok",
-        }
+DELETE_ORDER = ("activity_logs", "actions", "projects")
+INSERT_ORDER = ("projects", "actions", "activity_logs")
 
 
 class SQLiteRepository:
@@ -136,7 +66,6 @@ class SQLiteRepository:
         connection = sqlite3.connect(self.db_path)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
-        # OneDrive-backed workspaces can fail on the default rollback journal.
         connection.execute("PRAGMA journal_mode = MEMORY")
         connection.execute("PRAGMA synchronous = NORMAL")
         connection.execute("PRAGMA temp_store = MEMORY")
@@ -160,9 +89,8 @@ class SQLiteRepository:
 
         projects = self._load_seed_file("projects.json")
         actions = self._load_seed_file("actions.json")
-        comments = self._load_seed_file("comments.json")
         activity_logs = self._load_seed_file("activity_logs.json")
-        self.save_workspace(projects, actions, comments, activity_logs)
+        self.save_workspace(projects, actions, activity_logs)
 
     def _load_seed_file(self, filename: str):
         if not self.seed_dir:
@@ -188,11 +116,10 @@ class SQLiteRepository:
         return self._fetch_collection(table_name)
 
     def load_workspace(self):
-        projects, actions, comments, activity_logs = self.load_workspace_values()
+        projects, actions, activity_logs = self.load_workspace_values()
         return {
             "projects": projects,
             "actions": actions,
-            "comments": comments,
             "activity_logs": activity_logs,
         }
 
@@ -200,15 +127,13 @@ class SQLiteRepository:
         return (
             self.load_collection("projects"),
             self.load_collection("actions"),
-            self.load_collection("comments"),
             self.load_collection("activity_logs"),
         )
 
-    def save_workspace(self, projects, actions, comments, activity_logs) -> None:
+    def save_workspace(self, projects, actions, activity_logs) -> None:
         collections = {
             "projects": projects,
             "actions": actions,
-            "comments": comments,
             "activity_logs": activity_logs,
         }
 
