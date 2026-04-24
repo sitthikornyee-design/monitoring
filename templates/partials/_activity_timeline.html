@@ -1,0 +1,18 @@
+<div class="crm-stack">
+    {% for log in activity_logs %}
+        <article class="crm-timeline-item">
+            <div class="crm-timeline-dot"></div>
+            <div>
+                <p class="crm-timeline-title">{{ log.comment }}</p>
+                <p class="crm-timeline-meta">
+                    {{ log.updated_by }} | {{ log.updated_at|datetime_label }}
+                    {% if log.field_name %}
+                        | {{ log.field_name.replace('_', ' ') }}
+                    {% endif %}
+                </p>
+            </div>
+        </article>
+    {% else %}
+        <p class="crm-empty-inline">No activity recorded yet.</p>
+    {% endfor %}
+</div>

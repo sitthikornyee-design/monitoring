@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="crm-form-panel">
+    <div class="crm-panel-header">
+        <div>
+            <p class="crm-panel-kicker">Action form</p>
+            <h3>{% if form_mode == 'edit' %}Edit action{% else %}Create action{% endif %}</h3>
+            <p class="crm-page-intro">Project: {{ project.project_name }}</p>
+        </div>
+    </div>
+
+    <form class="crm-form-grid" method="post" action="{{ form_action }}">
+        <input type="hidden" name="updated_by" value="Yee">
+
+        <label class="full">
+            <span>Project</span>
+            <select class="crm-select" name="project_id">
+                {% for row in projects %}
+                    <option value="{{ row.id }}" {% if action.project_id == row.id %}selected{% endif %}>
+                        {{ row.project_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="full">
+            <span>Action name</span>
+            <input class="crm-input" type="text" name="action_name" value="{{ action.action_name }}">
+        </label>
+        <label class="full">
+            <span>Description</span>
+            <textarea class="crm-textarea" name="description" rows="4">{{ action.description }}</textarea>
+        </label>
+        <label>
+            <span>Status</span>
+            <select class="crm-select" name="action_status">
+                {% for status in action_status_options %}
+                    <option value="{{ status }}" {% if action.action_status == status %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span>Priority</span>
+            <select class="crm-select" name="priority">
+                {% for priority in priority_options %}
+                    <option value="{{ priority }}" {% if action.priority == priority %}selected{% endif %}>{{ priority }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span>Assignee</span>
+            <input class="crm-input" type="text" name="assignee" value="{{ action.assignee }}">
+        </label>
+        <label>
+            <span>Progress %</span>
+            <input class="crm-input" type="number" min="0" max="100" name="progress_percent" value="{{ action.progress_percent }}">
+        </label>
+        <label>
+            <span>Start date</span>
+            <input class="crm-input" type="date" name="start_date" value="{{ action.start_date }}">
+        </label>
+        <label>
+            <span>Due date</span>
+            <input class="crm-input" type="date" name="due_date" value="{{ action.due_date }}">
+        </label>
+        <label class="full">
+            <span>Remark</span>
+            <textarea class="crm-textarea" name="remark" rows="4">{{ action.remark }}</textarea>
+        </label>
+
+        <div class="crm-form-actions full">
+            <a class="crm-button crm-button-ghost" href="{{ url_for('project_detail', project_id=project.id) }}">Cancel</a>
+            <button class="crm-button crm-button-primary" type="submit">
+                {% if form_mode == 'edit' %}Save action{% else %}Create action{% endif %}
+            </button>
+        </div>
+    </form>
+</section>
+{% endblock %}

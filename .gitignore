@@ -33,6 +33,7 @@ htmlcov/
 *.sqlite3
 data/*.db
 data/*.db-journal
+data/_smoke/
 
 # Logs
 *.log

@@ -1,0 +1,39 @@
+<div class="crm-sidebar-shell">
+    <aside class="crm-sidebar">
+        <div class="crm-sidebar-header crm-sidebar-header-portfolio">
+            <div>
+                <h1>Projects</h1>
+            </div>
+        </div>
+
+        <div class="crm-sidebar-scroll">
+            <section class="crm-sidebar-group">
+                <a class="crm-sidebar-primary-action" href="{{ url_for('new_project') }}">+ New Project</a>
+            </section>
+
+            <section class="crm-sidebar-group">
+                <a class="crm-sidebar-row {% if page_key == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                    <span>Overview</span>
+                </a>
+            </section>
+
+            <section class="crm-sidebar-group">
+                <div class="crm-sidebar-section-head">
+                    <a class="crm-sidebar-section-link" href="{{ url_for('projects_table') }}">All Projects</a>
+                    <span class="crm-sidebar-count">{{ sidebar_summary.total_projects }}</span>
+                </div>
+
+                <div class="crm-sidebar-project-list crm-sidebar-project-list-simple">
+                    {% for project in sidebar_projects[:5] %}
+                        <a class="crm-sidebar-project-link {% if page_title == project.project_name %}active{% endif %}" href="{{ url_for('project_detail', project_id=project.id) }}">
+                            <span class="crm-sidebar-project-bullet">-</span>
+                            <span>{{ project.project_name }}</span>
+                        </a>
+                    {% else %}
+                        <div class="crm-sidebar-empty">No projects yet.</div>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+    </aside>
+</div>

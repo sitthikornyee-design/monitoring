@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import metric_card, status_badge, priority_badge, progress_bar %}
+
+{% block content %}
+<section class="crm-page-hero">
+    <div>
+        <p class="crm-panel-kicker">Overview</p>
+        <h1>Project Monitoring</h1>
+        <p class="crm-page-intro">Track project health, task progress, owners, due dates, and delivery risk from one clean workspace.</p>
+    </div>
+
+    <div class="crm-page-hero-actions">
+        <a class="crm-button crm-button-secondary" href="{{ url_for('projects_gantt') }}">Open Gantt</a>
+        <a class="crm-button crm-button-primary" href="{{ url_for('new_project') }}">Add Project</a>
+    </div>
+</section>
+
+<section class="crm-grid crm-grid-6 crm-section-gap">
+    {{ metric_card('Total Projects', dashboard.summary.total_projects) }}
+    {{ metric_card('Active Projects', dashboard.summary.active_projects) }}
+    {{ metric_card('Completed', dashboard.summary.completed_projects) }}
+    {{ metric_card('Total Actions', dashboard.summary.total_actions) }}
+    {{ metric_card('Overdue', dashboard.summary.overdue_actions) }}
+    {{ metric_card('Upcoming', dashboard.summary.upcoming_due_tasks) }}
+</section>
+
+<section class="crm-grid crm-overview-layout crm-section-gap">
+    <article class="crm-panel">
+        <div class="crm-panel-header">
+            <div>
+                <p class="crm-panel-kicker">Projects</p>
+                <h3>Project summary</h3>
+            </div>
+            <a class="crm-button crm-button-secondary" href="{{ url_for('projects_table') }}">View table</a>
+        </div>
+
+        <div class="crm-project-summary-grid">
+            {% for project in dashboard.attention_projects %}
+                <a class="crm-project-summary-card" href="{{ url_for('project_detail', project_id=project.id) }}">
+                    <div class="crm-project-summary-head">
+                        <div>
+                            <strong>{{ project.project_name }}</strong>
+                            <p>{{ project.client_name }} | {{ project.owner }}</p>
+                        </div>
+                        {{ status_badge(project.project_status) }}
+                    </div>
+
+                    <div class="crm-project-summary-meta">
+                        <span>{{ project.action_count }} tasks</span>
+                        <span>Due {{ project.due_date|date_label }}</span>
+                        <span>{{ project.progress_percent }}%</span>
+                    </div>
+
+                    {{ progress_bar(project.progress_percent) }}
+                </a>
+            {% else %}
+                <p class="crm-empty-inline">No projects yet.</p>
+            {% endfor %}
+        </div>
+    </article>
+
+    <aside class="crm-stack">
+        <article class="crm-panel">
+            <div class="crm-panel-header">
+                <div>
+                    <p class="crm-panel-kicker">Risk</p>
+                    <h3>Overdue actions</h3>
+                </div>
+            </div>
+            <div class="crm-stack">
+                {% for action in dashboard.overdue_actions[:4] %}
+                    <div class="crm-compact-task">
+                        <div>
+                            <strong>{{ action.action_name }}</strong>
+                            <p>Due {{ action.due_date|date_label }} | {{ action.assignee or 'Unassigned' }}</p>
+                        </div>
+                        {{ status_badge(action.display_status) }}
+                    </div>
+                {% else %}
+                    <p class="crm-empty-inline">No overdue actions.</p>
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="crm-panel">
+            <div class="crm-panel-header">
+                <div>
+                    <p class="crm-panel-kicker">Upcoming</p>
+                    <h3>Due within 3 days</h3>
+                </div>
+            </div>
+            <div class="crm-stack">
+                {% for action in dashboard.upcoming_actions[:4] %}
+                    <div class="crm-compact-task">
+                        <div>
+                            <strong>{{ action.action_name }}</strong>
+                            <p>Due {{ action.due_date|date_label }} | {{ action.assignee or 'Unassigned' }}</p>
+                        </div>
+                        {{ priority_badge(action.priority) }}
+                    </div>
+                {% else %}
+                    <p class="crm-empty-inline">No upcoming tasks.</p>
+                {% endfor %}
+            </div>
+        </article>
+    </aside>
+</section>
+{% endblock %}

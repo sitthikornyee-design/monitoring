@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import status_badge, priority_badge %}
+
+{% block content %}
+    {% include "partials/_toolbar.html" %}
+
+    <section class="crm-board crm-section-gap" data-board>
+        {% for column in board_columns %}
+            <article class="crm-board-column" data-board-column="{{ column }}">
+                <div class="crm-board-column-header">
+                    <h3>{{ column }}</h3>
+                    <span data-board-count>{{ board_groups[column]|length }}</span>
+                </div>
+
+                <div class="crm-board-stack" data-board-dropzone>
+                    {% for action in board_groups[column] %}
+                        <article
+                            class="crm-board-card"
+                            draggable="true"
+                            data-board-card
+                            data-action-id="{{ action.id }}"
+                            data-current-status="{{ action.action_status }}"
+                        >
+                            <div class="crm-board-card-top">
+                                <strong>{{ action.action_name }}</strong>
+                                {{ priority_badge(action.priority) }}
+                            </div>
+                            <p>{{ action.project_name }} | {{ action.client_name }}</p>
+                            <p class="crm-meta-line">{{ action.assignee or 'Unassigned' }} | Due {{ action.due_date|date_label }}</p>
+                            <div class="crm-chip-row">
+                                {% if action.is_overdue %}
+                                    {{ status_badge(action.display_status) }}
+                                {% endif %}
+                            </div>
+                            <a class="crm-board-link" href="{{ url_for('project_detail', project_id=action.project_id) }}">Open project</a>
+                        </article>
+                    {% endfor %}
+                    <p class="crm-empty-inline" data-board-empty {% if board_groups[column]|length %}hidden{% endif %}>No actions</p>
+                </div>
+            </article>
+        {% endfor %}
+    </section>
+{% endblock %}

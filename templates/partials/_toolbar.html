@@ -1,0 +1,60 @@
+<section class="crm-toolbar-card">
+    <div class="crm-toolbar-head">
+        <div>
+            <p class="crm-toolbar-meta">{{ space_name }}</p>
+            <h1 class="crm-toolbar-title">{{ page_title }}</h1>
+        </div>
+
+        <div class="crm-view-tabs">
+            <a class="crm-view-tab {% if current_view == 'list' %}active{% endif %}" href="{{ url_for('projects_list', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort) }}">List</a>
+            <a class="crm-view-tab {% if current_view == 'board' %}active{% endif %}" href="{{ url_for('projects_board', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort) }}">Board</a>
+            <a class="crm-view-tab {% if current_view == 'gantt' %}active{% endif %}" href="{{ url_for('projects_gantt', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort) }}">Gantt</a>
+            <a class="crm-view-tab {% if current_view == 'table' %}active{% endif %}" href="{{ url_for('projects_table', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort) }}">Table</a>
+        </div>
+    </div>
+
+    <form class="crm-toolbar-form" method="get" data-auto-submit="true">
+        <div class="crm-toolbar-grid">
+            <div class="crm-toolbar-field crm-toolbar-search">
+                <input class="crm-input" type="search" name="q" value="{{ filters.q }}" placeholder="Search project, task, customer">
+            </div>
+            <div class="crm-toolbar-field">
+                <select class="crm-select" name="status" aria-label="Status">
+                    <option value="all">All statuses</option>
+                    {% for status in filter_options.statuses %}
+                        <option value="{{ status }}" {% if filters.status == status %}selected{% endif %}>{{ status }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="crm-toolbar-field">
+                <select class="crm-select" name="owner" aria-label="Owner">
+                    <option value="all">All owners</option>
+                    {% for owner in filter_options.owners %}
+                        <option value="{{ owner }}" {% if filters.owner == owner %}selected{% endif %}>{{ owner }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="crm-toolbar-field">
+                <select class="crm-select" name="priority" aria-label="Priority">
+                    <option value="all">All priorities</option>
+                    {% for priority in priority_options %}
+                        <option value="{{ priority }}" {% if filters.priority == priority %}selected{% endif %}>{{ priority }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="crm-toolbar-field">
+                <select class="crm-select" name="sort" aria-label="Sort">
+                    {% for sort_value, sort_label in sort_options %}
+                        <option value="{{ sort_value }}" {% if filters.sort == sort_value %}selected{% endif %}>{{ sort_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="crm-toolbar-actions">
+            <button class="crm-button crm-button-secondary" type="submit">Apply</button>
+            <a class="crm-button crm-button-ghost" href="{% if current_view == 'list' %}{{ url_for('projects_list') }}{% elif current_view == 'board' %}{{ url_for('projects_board') }}{% elif current_view == 'gantt' %}{{ url_for('projects_gantt') }}{% else %}{{ url_for('projects_table') }}{% endif %}">Reset</a>
+            <a class="crm-button crm-button-primary" href="{{ url_for('new_project') }}">Add Project</a>
+        </div>
+    </form>
+</section>

@@ -374,3 +374,276 @@ document.addEventListener("DOMContentLoaded", () => {
     initModuleCharts();
     initCreateModal();
 });
+
+function initCrmAutoSubmitFilters() {
+    document.querySelectorAll("[data-auto-submit='true']").forEach((form) => {
+        form.querySelectorAll("select").forEach((select) => {
+            select.addEventListener("change", () => {
+                form.requestSubmit();
+            });
+        });
+    });
+}
+
+function initCrmDeleteConfirmation() {
+    document.querySelectorAll("[data-confirm-delete]").forEach((element) => {
+        element.addEventListener("click", (event) => {
+            const message = element.getAttribute("data-confirm-delete") || "Are you sure?";
+            if (!window.confirm(message)) {
+                event.preventDefault();
+            }
+        });
+    });
+}
+
+function initCrmGanttToggles() {
+    document.querySelectorAll("[data-gantt-toggle]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const groupId = button.getAttribute("data-gantt-toggle");
+            const isExpanded = button.getAttribute("aria-expanded") !== "false";
+            const nextExpanded = !isExpanded;
+
+            button.setAttribute("aria-expanded", String(nextExpanded));
+            button.classList.toggle("is-collapsed", !nextExpanded);
+
+            document.querySelectorAll(`[data-gantt-child="${groupId}"]`).forEach((row) => {
+                row.hidden = !nextExpanded;
+            });
+        });
+    });
+}
+
+function initCrmBoardDragAndDrop() {
+    const board = document.querySelector("[data-board]");
+    if (!board) {
+        return;
+    }
+
+    let draggedCard = null;
+    let sourceDropzone = null;
+    let sourceNextSibling = null;
+    let dropped = false;
+
+    function getColumn(element) {
+        return element ? element.closest("[data-board-column]") : null;
+    }
+
+    function getDropzone(column) {
+        return column ? column.querySelector("[data-board-dropzone]") : null;
+    }
+
+    function refreshColumn(column) {
+        if (!column) {
+            return;
+        }
+
+        const cards = column.querySelectorAll("[data-board-card]");
+        const count = column.querySelector("[data-board-count]");
+        const emptyState = column.querySelector("[data-board-empty]");
+
+        if (count) {
+            count.textContent = String(cards.length);
+        }
+
+        if (emptyState) {
+            emptyState.hidden = cards.length > 0;
+        }
+    }
+
+    function refreshAllColumns() {
+        board.querySelectorAll("[data-board-column]").forEach(refreshColumn);
+    }
+
+    function showBoardToast(message, type = "success") {
+        let toast = document.querySelector("[data-board-toast]");
+
+        if (!toast) {
+            toast = document.createElement("div");
+            toast.setAttribute("data-board-toast", "true");
+            document.body.appendChild(toast);
+        }
+
+        toast.className = `crm-board-toast is-${type} is-visible`;
+        toast.textContent = message;
+
+        window.clearTimeout(toast.hideTimer);
+        toast.hideTimer = window.setTimeout(() => {
+            toast.classList.remove("is-visible");
+        }, 2200);
+    }
+
+    function getDropBeforeCard(dropzone, pointerY) {
+        const cards = [...dropzone.querySelectorAll("[data-board-card]:not(.is-dragging)")];
+
+        return cards.reduce(
+            (closest, card) => {
+                const rect = card.getBoundingClientRect();
+                const offset = pointerY - rect.top - rect.height / 2;
+
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset, element: card };
+                }
+
+                return closest;
+            },
+            { offset: Number.NEGATIVE_INFINITY, element: null }
+        ).element;
+    }
+
+    function placeCard(dropzone, card, beforeCard = null) {
+        const emptyState = dropzone.querySelector("[data-board-empty]");
+        dropzone.insertBefore(card, beforeCard || emptyState);
+    }
+
+    function restoreCard(card, previousDropzone, previousNextSibling) {
+        if (!card || !previousDropzone) {
+            return;
+        }
+
+        previousDropzone.insertBefore(card, previousNextSibling);
+        refreshColumn(getColumn(previousDropzone));
+    }
+
+    async function persistStatus(card, newStatus) {
+        const actionId = card.getAttribute("data-action-id");
+        const previousStatus = card.getAttribute("data-current-status");
+
+        if (!actionId || !newStatus || previousStatus === newStatus) {
+            return true;
+        }
+
+        card.classList.add("is-saving");
+
+        try {
+            const response = await fetch(`/actions/${encodeURIComponent(actionId)}/status`, {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ action_status: newStatus }),
+            });
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok || result.ok === false) {
+                throw new Error(result.message || "Status could not be updated.");
+            }
+
+            card.setAttribute("data-current-status", result.action_status || newStatus);
+
+            if (newStatus === "Completed") {
+                const chipRow = card.querySelector(".crm-chip-row");
+                if (chipRow) {
+                    chipRow.innerHTML = "";
+                }
+            }
+
+            showBoardToast("Status updated. Other views now use the same synced data.");
+            return true;
+        } catch (error) {
+            showBoardToast(error.message || "Could not update status. Card was moved back.", "error");
+            return false;
+        } finally {
+            card.classList.remove("is-saving");
+        }
+    }
+
+    board.querySelectorAll("[data-board-card]").forEach((card) => {
+        card.addEventListener("dragstart", (event) => {
+            draggedCard = card;
+            sourceDropzone = card.parentElement;
+            sourceNextSibling = card.nextElementSibling;
+            dropped = false;
+
+            card.classList.add("is-dragging");
+
+            if (event.dataTransfer) {
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", card.getAttribute("data-action-id") || "");
+            }
+        });
+
+        card.addEventListener("dragend", () => {
+            if (!dropped) {
+                restoreCard(draggedCard, sourceDropzone, sourceNextSibling);
+            }
+
+            if (draggedCard) {
+                draggedCard.classList.remove("is-dragging");
+            }
+
+            board.querySelectorAll(".is-drag-over").forEach((column) => {
+                column.classList.remove("is-drag-over");
+            });
+
+            refreshAllColumns();
+            draggedCard = null;
+            sourceDropzone = null;
+            sourceNextSibling = null;
+            dropped = false;
+        });
+    });
+
+    board.querySelectorAll("[data-board-column]").forEach((column) => {
+        const dropzone = getDropzone(column);
+
+        if (!dropzone) {
+            return;
+        }
+
+        column.addEventListener("dragover", (event) => {
+            if (!draggedCard) {
+                return;
+            }
+
+            event.preventDefault();
+            column.classList.add("is-drag-over");
+
+            if (event.dataTransfer) {
+                event.dataTransfer.dropEffect = "move";
+            }
+        });
+
+        column.addEventListener("dragleave", (event) => {
+            if (!column.contains(event.relatedTarget)) {
+                column.classList.remove("is-drag-over");
+            }
+        });
+
+        column.addEventListener("drop", async (event) => {
+            if (!draggedCard) {
+                return;
+            }
+
+            event.preventDefault();
+            dropped = true;
+            column.classList.remove("is-drag-over");
+
+            const card = draggedCard;
+            const previousDropzone = sourceDropzone;
+            const previousNextSibling = sourceNextSibling;
+            const previousColumn = getColumn(previousDropzone);
+            const beforeCard = getDropBeforeCard(dropzone, event.clientY);
+            const newStatus = column.getAttribute("data-board-column") || "";
+
+            placeCard(dropzone, card, beforeCard);
+            refreshColumn(previousColumn);
+            refreshColumn(column);
+
+            const saved = await persistStatus(card, newStatus);
+            if (!saved) {
+                restoreCard(card, previousDropzone, previousNextSibling);
+                refreshColumn(column);
+            }
+        });
+    });
+
+    refreshAllColumns();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    initCrmAutoSubmitFilters();
+    initCrmDeleteConfirmation();
+    initCrmGanttToggles();
+    initCrmBoardDragAndDrop();
+});

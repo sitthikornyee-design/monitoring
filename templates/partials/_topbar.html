@@ -1,0 +1,22 @@
+<header class="crm-globalbar">
+    <div class="crm-globalbar-left">
+        <div class="crm-workspace-lockup">
+            <span class="crm-workspace-avatar">S</span>
+            <div>
+                <p>Workspace</p>
+                <strong>{{ workspace_name }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <label class="crm-global-search">
+        <span class="crm-global-search-icon">Search</span>
+        <input type="search" placeholder="Project, task, customer, assignee">
+        <span class="crm-global-shortcut">Ctrl K</span>
+    </label>
+
+    <div class="crm-globalbar-right">
+        <a class="crm-button crm-button-secondary" href="{{ url_for('projects_table') }}">All Projects</a>
+        <a class="crm-button crm-button-primary" href="{{ url_for('new_project') }}">Add Project</a>
+    </div>
+</header>

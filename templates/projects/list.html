@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import status_badge, priority_badge, progress_bar %}
+
+{% block content %}
+    {% include "partials/_toolbar.html" %}
+
+    <section class="crm-project-card-grid crm-section-gap">
+        {% for project in projects %}
+            <article class="crm-project-card">
+                <div class="crm-project-card-top">
+                    <div>
+                        <p class="crm-project-service">{{ project.service_name }}</p>
+                        <h3>{{ project.project_name }}</h3>
+                        <p class="crm-project-client">{{ project.client_name }}</p>
+                    </div>
+                    {{ status_badge(project.project_status) }}
+                </div>
+
+                <div class="crm-chip-row">
+                    {{ priority_badge(project.priority) }}
+                    {% if project.overdue_count %}
+                        <span class="crm-badge badge-danger">{{ project.overdue_count }} overdue</span>
+                    {% endif %}
+                    {% if project.upcoming_count %}
+                        <span class="crm-badge badge-warning">{{ project.upcoming_count }} upcoming</span>
+                    {% endif %}
+                </div>
+
+                <dl class="crm-detail-grid compact">
+                    <div>
+                        <dt>Owner</dt>
+                        <dd>{{ project.owner }}</dd>
+                    </div>
+                    <div>
+                        <dt>Start</dt>
+                        <dd>{{ project.start_date|date_label }}</dd>
+                    </div>
+                    <div>
+                        <dt>Due</dt>
+                        <dd>{{ project.due_date|date_label }}</dd>
+                    </div>
+                    <div>
+                        <dt>Actions</dt>
+                        <dd>{{ project.action_count }}</dd>
+                    </div>
+                </dl>
+
+                <div class="crm-progress-wrap">
+                    <div class="crm-progress-label">
+                        <span>Progress</span>
+                        <strong>{{ project.progress_percent }}%</strong>
+                    </div>
+                    {{ progress_bar(project.progress_percent) }}
+                </div>
+
+                <div class="crm-project-card-footer">
+                    <a class="crm-button crm-button-secondary" href="{{ url_for('edit_project', project_id=project.id) }}">Edit project</a>
+                    <a class="crm-button crm-button-primary" href="{{ url_for('project_detail', project_id=project.id) }}">Open detail</a>
+                </div>
+            </article>
+        {% else %}
+            <article class="crm-panel">
+                <p class="crm-empty-inline">No projects match the current filters.</p>
+            </article>
+        {% endfor %}
+    </section>
+{% endblock %}

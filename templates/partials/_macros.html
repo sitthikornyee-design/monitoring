@@ -1,0 +1,39 @@
+{% macro status_badge(status, class_name='') -%}
+    {% set status_classes = {
+        'Not Started': 'badge-neutral',
+        'In Progress': 'badge-info',
+        'Pending': 'badge-warning',
+        'Completed': 'badge-success',
+        'On Hold': 'badge-purple',
+        'Cancelled': 'badge-dark',
+        'Overdue': 'badge-danger',
+        'At Risk': 'badge-danger'
+    } %}
+    <span class="crm-badge {{ status_classes.get(status, 'badge-neutral') }} {{ class_name }}">{{ status }}</span>
+{%- endmacro %}
+
+{% macro priority_badge(priority, class_name='') -%}
+    {% set priority_classes = {
+        'Low': 'badge-neutral',
+        'Medium': 'badge-info',
+        'High': 'badge-warning',
+        'Urgent': 'badge-danger'
+    } %}
+    <span class="crm-badge {{ priority_classes.get(priority, 'badge-neutral') }} {{ class_name }}">{{ priority }}</span>
+{%- endmacro %}
+
+{% macro metric_card(label, value, helper='') -%}
+    <div class="crm-metric-card">
+        <p class="crm-metric-label">{{ label }}</p>
+        <p class="crm-metric-value">{{ value }}</p>
+        {% if helper %}
+            <p class="crm-metric-helper">{{ helper }}</p>
+        {% endif %}
+    </div>
+{%- endmacro %}
+
+{% macro progress_bar(value) -%}
+    <div class="crm-progress">
+        <div class="crm-progress-bar" style="width: {{ value }}%"></div>
+    </div>
+{%- endmacro %}

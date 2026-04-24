@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import status_badge %}
+
+{% block content %}
+    {% include "partials/_toolbar.html" %}
+
+    <section class="crm-gantt-stage crm-section-gap">
+        <div class="crm-gantt-table-wrap">
+            <table class="crm-gantt-table">
+                <thead>
+                    <tr>
+                        <th class="crm-gantt-name-head">
+                            <div class="crm-gantt-name-head-inner">
+                                <span>Name</span>
+                                <a class="crm-gantt-add-link" href="{{ url_for('new_project') }}">+</a>
+                            </div>
+                        </th>
+                        <th class="crm-gantt-timeline-head">
+                            <div class="crm-gantt-calendar-head" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(56px, 1fr));">
+                                {% for day in gantt.days %}
+                                    <div class="crm-gantt-day-head {% if day.weekday() >= 5 %}is-weekend{% endif %} {% if day == today_date %}is-today{% endif %}">
+                                        <span>{{ day.strftime('%a') }}</span>
+                                        <strong>{{ day.strftime('%d') }}</strong>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </th>
+                    </tr>
+                </thead>
+
+                {% for group in gantt.project_groups %}
+                    <tbody class="crm-gantt-group" data-gantt-group="{{ group.project.project_id }}">
+                        <tr class="crm-gantt-table-row crm-gantt-project-row">
+                            <td class="crm-gantt-name-cell">
+                                <div class="crm-gantt-name-cell-inner">
+                                    <button class="crm-gantt-toggle" type="button" data-gantt-toggle="{{ group.project.project_id }}" aria-expanded="true">
+                                        <span class="crm-gantt-toggle-icon">v</span>
+                                    </button>
+                                    <div class="crm-gantt-name-copy">
+                                        <strong>{{ group.project.label }}</strong>
+                                        <span>{{ group.project.subtitle }} | {{ group.project.action_count }} tasks</span>
+                                    </div>
+                                    {{ status_badge(group.project.status) }}
+                                </div>
+                            </td>
+                            <td class="crm-gantt-timeline-cell">
+                                <div class="crm-gantt-grid" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(56px, 1fr));">
+                                    {% for day in gantt.days %}
+                                        <div class="crm-gantt-grid-cell {% if day.weekday() >= 5 %}is-weekend{% endif %} {% if day == today_date %}is-today{% endif %}"></div>
+                                    {% endfor %}
+
+                                    {% if gantt.start <= today_date <= gantt.end %}
+                                        <div class="crm-gantt-today-line" style="grid-column: {{ (today_date - gantt.start).days + 1 }};"></div>
+                                    {% endif %}
+
+                                    {% if group.project.offset is not none and group.project.span is not none %}
+                                        <div
+                                            class="crm-gantt-bar crm-gantt-bar-project {% if group.project.status in ['Overdue', 'At Risk'] %}crm-gantt-bar-danger{% endif %}"
+                                            style="grid-column: {{ group.project.offset + 1 }} / span {{ group.project.span }};"
+                                        >
+                                            <span>{{ group.project.progress_percent }}%</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+
+                        {% for row in group.actions %}
+                            <tr class="crm-gantt-table-row crm-gantt-task-row" data-gantt-child="{{ group.project.project_id }}">
+                                <td class="crm-gantt-name-cell">
+                                    <div class="crm-gantt-name-cell-inner">
+                                        <span class="crm-gantt-task-indent"></span>
+                                        <div class="crm-gantt-name-copy">
+                                            <strong>{{ row.label }}</strong>
+                                            <span>{{ row.subtitle }} | {{ row.status }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="crm-gantt-timeline-cell">
+                                    <div class="crm-gantt-grid" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(56px, 1fr));">
+                                        {% for day in gantt.days %}
+                                            <div class="crm-gantt-grid-cell {% if day.weekday() >= 5 %}is-weekend{% endif %} {% if day == today_date %}is-today{% endif %}"></div>
+                                        {% endfor %}
+
+                                        {% if gantt.start <= today_date <= gantt.end %}
+                                            <div class="crm-gantt-today-line" style="grid-column: {{ (today_date - gantt.start).days + 1 }};"></div>
+                                        {% endif %}
+
+                                        {% if row.offset is not none and row.span is not none %}
+                                            <div
+                                                class="crm-gantt-bar crm-gantt-bar-action {% if row.status in ['Overdue', 'At Risk'] %}crm-gantt-bar-danger{% endif %}"
+                                                style="grid-column: {{ row.offset + 1 }} / span {{ row.span }};"
+                                            >
+                                                <span>{{ row.progress_percent }}%</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                {% else %}
+                    <tbody>
+                        <tr>
+                            <td colspan="2" class="crm-empty-inline">No timeline data available.</td>
+                        </tr>
+                    </tbody>
+                {% endfor %}
+            </table>
+        </div>
+    </section>
+{% endblock %}
