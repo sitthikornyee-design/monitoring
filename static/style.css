@@ -7076,7 +7076,7 @@ a {
 
 .crm-gantt-name-head {
     z-index: 10;
-    height: 82px;
+    height: 108px;
     padding: 0 16px !important;
 }
 
@@ -7096,7 +7096,7 @@ a {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 82px;
+    min-height: 108px;
 }
 
 .crm-gantt-add-link {
@@ -7121,12 +7121,13 @@ a {
 }
 
 .crm-gantt-month-head,
+.crm-gantt-week-head,
 .crm-gantt-day-head-row {
     display: grid;
 }
 
-.crm-gantt-month-cell {
-    min-height: 28px;
+.crm-gantt-month-cell,
+.crm-gantt-week-cell {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -7141,7 +7142,19 @@ a {
     text-transform: uppercase;
 }
 
-.crm-gantt-month-cell:first-child {
+.crm-gantt-month-cell {
+    min-height: 30px;
+}
+
+.crm-gantt-week-cell {
+    min-height: 24px;
+    background: #f9fafb;
+    color: var(--clean-muted-2);
+    font-size: 11px;
+}
+
+.crm-gantt-month-cell:first-child,
+.crm-gantt-week-cell:first-child {
     border-left: 0;
 }
 

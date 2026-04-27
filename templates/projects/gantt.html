@@ -70,6 +70,14 @@
                                     {% endfor %}
                                 </div>
 
+                                <div class="crm-gantt-week-head" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(56px, 1fr));">
+                                    {% for week in gantt.week_groups %}
+                                        <div class="crm-gantt-week-cell" style="grid-column: {{ week.offset + 1 }} / span {{ week.span }};">
+                                            {{ week.label }}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+
                                 <div class="crm-gantt-day-head-row" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(56px, 1fr));">
                                     {% for day in gantt.days %}
                                         <div class="crm-gantt-day-head {% if day.weekday() >= 5 %}is-weekend{% endif %} {% if day == today_date %}is-today{% endif %}">

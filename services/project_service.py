@@ -316,6 +316,28 @@ def build_gantt_month_groups(days):
     return groups
 
 
+def build_gantt_week_groups(days):
+    groups = []
+    current_group = None
+
+    for index, day in enumerate(days):
+        iso_year, iso_week, _ = day.isocalendar()
+        key = (iso_year, iso_week)
+        label = f"Week {iso_week}"
+        if not current_group or current_group["key"] != key:
+            current_group = {
+                "key": key,
+                "label": label,
+                "offset": index,
+                "span": 1,
+            }
+            groups.append(current_group)
+        else:
+            current_group["span"] += 1
+
+    return groups
+
+
 def compute_gantt_data(projects, visible_start=None, visible_end=None):
     all_dates = []
     for project in projects:
@@ -397,6 +419,7 @@ def compute_gantt_data(projects, visible_start=None, visible_end=None):
         "end": end,
         "days": days,
         "month_groups": build_gantt_month_groups(days),
+        "week_groups": build_gantt_week_groups(days),
         "rows": rows,
         "project_groups": project_groups,
     }
