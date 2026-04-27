@@ -170,6 +170,7 @@ def build_action_payload(form_data):
 def build_filters():
     return {
         "q": request.args.get("q", "").strip(),
+        "service": request.args.get("service", "all").strip() or "all",
         "status": request.args.get("status", "all").strip(),
         "priority": request.args.get("priority", "all").strip(),
         "owner": request.args.get("owner", "all").strip(),
@@ -179,35 +180,50 @@ def build_filters():
 
 
 def build_gantt_range_request():
-    scope_days = {
-        "week": 7,
-        "month": 30,
-        "quarter": 90,
-    }
     scope = request.args.get("scope", "week").strip().lower()
-    if scope not in scope_days:
+    if scope not in {"week", "month", "quarter"}:
         scope = "week"
 
-    default_lookback = {
-        "week": 3,
-        "month": 7,
-        "quarter": 30,
-    }
-
-    requested_start = parse_date(request.args.get("range_start", "").strip())
-    range_start = requested_start or (date.today() - timedelta(days=default_lookback[scope]))
-    range_end = range_start + timedelta(days=scope_days[scope] - 1)
+    selected_date = parse_date(request.args.get("range_start", "").strip()) or date.today()
+    range_start, range_end = gantt_scope_range(selected_date, scope)
 
     return range_start, range_end, scope
 
 
+def add_months(value, month_count):
+    month_index = value.month - 1 + month_count
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    return date(year, month, 1)
+
+
+def gantt_scope_range(value, scope):
+    if scope == "month":
+        range_start = date(value.year, value.month, 1)
+        return range_start, add_months(range_start, 1) - timedelta(days=1)
+
+    if scope == "quarter":
+        quarter_start_month = ((value.month - 1) // 3) * 3 + 1
+        range_start = date(value.year, quarter_start_month, 1)
+        return range_start, add_months(range_start, 3) - timedelta(days=1)
+
+    range_start = value - timedelta(days=value.weekday())
+    return range_start, range_start + timedelta(days=6)
+
+
 def build_gantt_controls(gantt, scope):
     start = gantt["start"]
-    end = gantt["end"]
-    span = max((end - start).days + 1, 1)
 
-    prev_start = start - timedelta(days=span)
-    next_start = start + timedelta(days=span)
+    if scope == "month":
+        prev_start = add_months(start, -1)
+        next_start = add_months(start, 1)
+    elif scope == "quarter":
+        prev_start = add_months(start, -3)
+        next_start = add_months(start, 3)
+    else:
+        prev_start = start - timedelta(days=7)
+        next_start = start + timedelta(days=7)
+
     return {
         "scope": scope,
         "scopes": [
@@ -256,6 +272,18 @@ def build_sidebar_service_groups(projects):
         )
 
     return grouped
+
+
+def filter_projects_by_service(projects, service_name):
+    if service_name == "all":
+        return projects
+
+    service_key = normalize_service_name(service_name)
+    return [
+        project
+        for project in projects
+        if normalize_service_name(project.get("service_name")) == service_key
+    ]
 
 
 def build_schedule_payload():
@@ -365,12 +393,19 @@ def home():
 @app.route("/dashboard")
 def dashboard():
     _, computed_projects = build_workspace_view()
-    dashboard_data = build_dashboard_data(computed_projects)
+    selected_service = request.args.get("service", "all").strip() or "all"
+    service_values = {"all", *SERVICE_OPTIONS}
+    if selected_service not in service_values:
+        selected_service = "all"
+
+    filtered_projects = filter_projects_by_service(computed_projects, selected_service)
+    dashboard_data = build_dashboard_data(filtered_projects)
     return render_template(
         "dashboard/index.html",
         page_title="Dashboard",
         page_key="dashboard",
         dashboard=dashboard_data,
+        dashboard_service_filter=selected_service,
     )
 
 

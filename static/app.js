@@ -377,8 +377,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function initCrmAutoSubmitFilters() {
     document.querySelectorAll("[data-auto-submit='true']").forEach((form) => {
-        form.querySelectorAll("select").forEach((select) => {
-            select.addEventListener("change", () => {
+        form.querySelectorAll("select, input[type='date']").forEach((field) => {
+            field.addEventListener("change", () => {
                 form.requestSubmit();
             });
         });

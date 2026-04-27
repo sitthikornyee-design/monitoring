@@ -6,10 +6,10 @@
         </div>
 
         <div class="crm-view-tabs">
-            <a class="crm-view-tab {% if current_view == 'list' %}active{% endif %}" href="{{ url_for('projects_list', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort) }}">List</a>
-            <a class="crm-view-tab {% if current_view == 'board' %}active{% endif %}" href="{{ url_for('projects_board', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort) }}">Board</a>
-            <a class="crm-view-tab {% if current_view == 'gantt' %}active{% endif %}" href="{{ url_for('projects_gantt', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort) }}">Gantt</a>
-            <a class="crm-view-tab {% if current_view == 'table' %}active{% endif %}" href="{{ url_for('projects_table', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort) }}">Table</a>
+            <a class="crm-view-tab {% if current_view == 'list' %}active{% endif %}" href="{{ url_for('projects_list', q=filters.q, service=filters.service, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort) }}">List</a>
+            <a class="crm-view-tab {% if current_view == 'board' %}active{% endif %}" href="{{ url_for('projects_board', q=filters.q, service=filters.service, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort) }}">Board</a>
+            <a class="crm-view-tab {% if current_view == 'gantt' %}active{% endif %}" href="{{ url_for('projects_gantt', q=filters.q, service=filters.service, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort) }}">Gantt</a>
+            <a class="crm-view-tab {% if current_view == 'table' %}active{% endif %}" href="{{ url_for('projects_table', q=filters.q, service=filters.service, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort) }}">Table</a>
         </div>
     </div>
 
@@ -17,6 +17,14 @@
         <div class="crm-toolbar-grid">
             <div class="crm-toolbar-field crm-toolbar-search">
                 <input class="crm-input" type="search" name="q" value="{{ filters.q }}" placeholder="Search project, task, customer">
+            </div>
+            <div class="crm-toolbar-field">
+                <select class="crm-select" name="service" aria-label="Service">
+                    <option value="all" {% if filters.service == 'all' %}selected{% endif %}>All services</option>
+                    {% for service in service_options %}
+                        <option value="{{ service }}" {% if filters.service == service %}selected{% endif %}>{{ service }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="crm-toolbar-field">
                 <select class="crm-select" name="status" aria-label="Status">

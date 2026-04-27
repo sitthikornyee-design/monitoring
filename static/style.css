@@ -5812,6 +5812,29 @@ a {
     line-height: 1.5;
 }
 
+.crm-dashboard-filter-form {
+    display: flex;
+    align-items: center;
+}
+
+.crm-dashboard-service-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.crm-dashboard-service-filter span {
+    color: var(--clean-muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.crm-dashboard-service-filter .crm-select {
+    min-width: 190px;
+}
+
 .crm-panel,
 .crm-form-panel {
     padding: 16px;
@@ -6824,6 +6847,7 @@ a {
 
     .crm-toolbar-head,
     .crm-toolbar-form,
+    .crm-page-hero-actions,
     .crm-page-hero,
     .crm-detail-hero {
         grid-template-columns: 1fr;
@@ -6849,6 +6873,12 @@ a {
 
     .crm-detail-metric-value-timeline {
         white-space: normal;
+    }
+
+    .crm-dashboard-filter-form,
+    .crm-dashboard-service-filter,
+    .crm-dashboard-service-filter .crm-select {
+        width: 100%;
     }
 
     .crm-modal-shell {
@@ -6941,6 +6971,29 @@ a {
     justify-content: flex-end;
 }
 
+.crm-gantt-date-form {
+    display: flex;
+    align-items: center;
+}
+
+.crm-gantt-date-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.crm-gantt-date-picker span {
+    color: var(--clean-muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.crm-gantt-date-picker .crm-input {
+    min-width: 150px;
+}
+
 .crm-gantt-scope-group {
     display: inline-flex;
     align-items: center;
@@ -7023,7 +7076,7 @@ a {
 
 .crm-gantt-name-head {
     z-index: 10;
-    height: 60px;
+    height: 82px;
     padding: 0 16px !important;
 }
 
@@ -7043,7 +7096,7 @@ a {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 60px;
+    min-height: 82px;
 }
 
 .crm-gantt-add-link {
@@ -7067,8 +7120,36 @@ a {
     min-width: 720px;
 }
 
+.crm-gantt-month-head,
+.crm-gantt-day-head-row {
+    display: grid;
+}
+
+.crm-gantt-month-cell {
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    border-left: 1px solid var(--clean-border);
+    border-bottom: 1px solid var(--clean-border);
+    background: #ffffff;
+    color: var(--clean-muted);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.crm-gantt-month-cell:first-child {
+    border-left: 0;
+}
+
 .crm-gantt-day-head {
-    min-height: 60px;
+    min-height: 54px;
+    display: grid;
+    align-content: center;
+    gap: 3px;
     padding: 8px 6px;
     border-left: 1px solid var(--clean-border);
     background: #f9fafb;
@@ -7215,12 +7296,13 @@ a {
 }
 
 .crm-gantt-day-head.is-weekend,
-.crm-gantt-grid-cell.is-weekend {
-    background: #fafafa;
+.crm-gantt-day-head.is-today {
+    background: #f9fafb;
 }
 
+.crm-gantt-grid-cell.is-weekend,
 .crm-gantt-grid-cell.is-today {
-    background: rgba(37, 99, 235, 0.03);
+    background: transparent;
 }
 
 .crm-gantt-today-line {
@@ -7391,6 +7473,9 @@ a {
         flex-direction: column;
     }
 
+    .crm-gantt-date-form,
+    .crm-gantt-date-picker,
+    .crm-gantt-date-picker .crm-input,
     .crm-gantt-scope-group,
     .crm-gantt-scope-link,
     .crm-gantt-period-actions > .crm-button {

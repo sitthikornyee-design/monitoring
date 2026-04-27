@@ -12,20 +12,35 @@
             </div>
 
             <div class="crm-gantt-period-actions">
-                <a class="crm-button crm-button-secondary crm-gantt-period-step" href="{{ url_for('projects_gantt', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort, scope=gantt.controls.scope, range_start=gantt.controls.prev_start) }}" aria-label="Previous date range">&lsaquo;</a>
+                <form class="crm-gantt-date-form" method="get" data-auto-submit="true">
+                    <input type="hidden" name="q" value="{{ filters.q }}">
+                    <input type="hidden" name="service" value="{{ filters.service }}">
+                    <input type="hidden" name="status" value="{{ filters.status }}">
+                    <input type="hidden" name="priority" value="{{ filters.priority }}">
+                    <input type="hidden" name="owner" value="{{ filters.owner }}">
+                    <input type="hidden" name="alert" value="{{ filters.alert }}">
+                    <input type="hidden" name="sort" value="{{ filters.sort }}">
+                    <input type="hidden" name="scope" value="{{ gantt.controls.scope }}">
+                    <label class="crm-gantt-date-picker">
+                        <span>Start</span>
+                        <input class="crm-input" type="date" name="range_start" value="{{ gantt.controls.start_value }}" aria-label="Select timeline start date">
+                    </label>
+                </form>
+
+                <a class="crm-button crm-button-secondary crm-gantt-period-step" href="{{ url_for('projects_gantt', q=filters.q, service=filters.service, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort, scope=gantt.controls.scope, range_start=gantt.controls.prev_start) }}" aria-label="Previous date range">&lsaquo;</a>
 
                 <div class="crm-gantt-scope-group" aria-label="Timeline scope">
                     {% for scope_option in gantt.controls.scopes %}
                         <a
                             class="crm-gantt-scope-link {% if gantt.controls.scope == scope_option.value %}active{% endif %}"
-                            href="{{ url_for('projects_gantt', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort, scope=scope_option.value, range_start=gantt.controls.start_value) }}"
+                            href="{{ url_for('projects_gantt', q=filters.q, service=filters.service, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort, scope=scope_option.value) }}"
                         >
                             {{ scope_option.label }}
                         </a>
                     {% endfor %}
                 </div>
 
-                <a class="crm-button crm-button-secondary crm-gantt-period-step" href="{{ url_for('projects_gantt', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort, scope=gantt.controls.scope, range_start=gantt.controls.next_start) }}" aria-label="Next date range">&rsaquo;</a>
+                <a class="crm-button crm-button-secondary crm-gantt-period-step" href="{{ url_for('projects_gantt', q=filters.q, service=filters.service, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort, scope=gantt.controls.scope, range_start=gantt.controls.next_start) }}" aria-label="Next date range">&rsaquo;</a>
             </div>
         </div>
 
@@ -46,13 +61,23 @@
                             </div>
                         </th>
                         <th class="crm-gantt-timeline-head">
-                            <div class="crm-gantt-calendar-head" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(56px, 1fr));">
-                                {% for day in gantt.days %}
-                                    <div class="crm-gantt-day-head {% if day.weekday() >= 5 %}is-weekend{% endif %} {% if day == today_date %}is-today{% endif %}">
-                                        <span>{{ day.strftime('%a') }}</span>
-                                        <strong>{{ day.strftime('%d') }}</strong>
-                                    </div>
-                                {% endfor %}
+                            <div class="crm-gantt-calendar-head">
+                                <div class="crm-gantt-month-head" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(56px, 1fr));">
+                                    {% for month in gantt.month_groups %}
+                                        <div class="crm-gantt-month-cell" style="grid-column: {{ month.offset + 1 }} / span {{ month.span }};">
+                                            {{ month.label }}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+
+                                <div class="crm-gantt-day-head-row" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(56px, 1fr));">
+                                    {% for day in gantt.days %}
+                                        <div class="crm-gantt-day-head {% if day.weekday() >= 5 %}is-weekend{% endif %} {% if day == today_date %}is-today{% endif %}">
+                                            <span>{{ day.strftime('%a') }}</span>
+                                            <strong>{{ day.strftime('%d') }}</strong>
+                                        </div>
+                                    {% endfor %}
+                                </div>
                             </div>
                         </th>
                     </tr>

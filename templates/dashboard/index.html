@@ -10,6 +10,17 @@
     </div>
 
     <div class="crm-page-hero-actions">
+        <form class="crm-dashboard-filter-form" method="get" data-auto-submit="true">
+            <label class="crm-dashboard-service-filter">
+                <span>Service</span>
+                <select class="crm-select" name="service" aria-label="Filter dashboard by service">
+                    <option value="all" {% if dashboard_service_filter == 'all' %}selected{% endif %}>All services</option>
+                    {% for service in service_options %}
+                        <option value="{{ service }}" {% if dashboard_service_filter == service %}selected{% endif %}>{{ service }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </form>
         <a class="crm-button crm-button-secondary" href="{{ url_for('projects_gantt') }}">Open Gantt</a>
         <a class="crm-button crm-button-primary" href="{{ url_for('new_project') }}" data-crm-modal-open="project">Add Project</a>
     </div>

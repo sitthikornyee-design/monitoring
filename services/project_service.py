@@ -50,6 +50,10 @@ def parse_date(value):
         return None
 
 
+def normalize_filter_value(value):
+    return "".join(char for char in str(value or "").lower() if char.isalnum())
+
+
 def status_badge_class(status):
     return STATUS_BADGE_CLASSES.get(status, "badge-neutral")
 
@@ -169,6 +173,7 @@ def compute_project_metrics(projects, actions):
 
 def filter_projects(projects, filters):
     q = filters.get("q", "").strip().lower()
+    service = filters.get("service", "all")
     status = filters.get("status", "all")
     priority = filters.get("priority", "all")
     owner = filters.get("owner", "all")
@@ -202,6 +207,8 @@ def filter_projects(projects, filters):
             if q not in haystack:
                 continue
 
+        if service != "all" and normalize_filter_value(project.get("service_name")) != normalize_filter_value(service):
+            continue
         if status != "all" and project.get("project_status") != status:
             continue
         if priority != "all" and project.get("priority") != priority:
@@ -290,6 +297,25 @@ def _gantt_position(item_start, item_end, timeline_start, timeline_end):
     }
 
 
+def build_gantt_month_groups(days):
+    groups = []
+    current_group = None
+
+    for index, day in enumerate(days):
+        label = day.strftime("%B %Y")
+        if not current_group or current_group["label"] != label:
+            current_group = {
+                "label": label,
+                "offset": index,
+                "span": 1,
+            }
+            groups.append(current_group)
+        else:
+            current_group["span"] += 1
+
+    return groups
+
+
 def compute_gantt_data(projects, visible_start=None, visible_end=None):
     all_dates = []
     for project in projects:
@@ -370,6 +396,7 @@ def compute_gantt_data(projects, visible_start=None, visible_end=None):
         "start": start,
         "end": end,
         "days": days,
+        "month_groups": build_gantt_month_groups(days),
         "rows": rows,
         "project_groups": project_groups,
     }
