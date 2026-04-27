@@ -5,14 +5,44 @@
     {% include "partials/_toolbar.html" %}
 
     <section class="crm-gantt-stage crm-section-gap">
-        <div class="crm-gantt-table-wrap">
+        <div class="crm-gantt-period-panel">
+            <div class="crm-gantt-period-copy">
+                <strong>Timeline</strong>
+                <span>{{ gantt.start|date_label }} - {{ gantt.end|date_label }}</span>
+            </div>
+
+            <div class="crm-gantt-period-actions">
+                <a class="crm-button crm-button-secondary crm-gantt-period-step" href="{{ url_for('projects_gantt', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort, scope=gantt.controls.scope, range_start=gantt.controls.prev_start) }}" aria-label="Previous date range">&lsaquo;</a>
+
+                <div class="crm-gantt-scope-group" aria-label="Timeline scope">
+                    {% for scope_option in gantt.controls.scopes %}
+                        <a
+                            class="crm-gantt-scope-link {% if gantt.controls.scope == scope_option.value %}active{% endif %}"
+                            href="{{ url_for('projects_gantt', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort, scope=scope_option.value, range_start=gantt.controls.start_value) }}"
+                        >
+                            {{ scope_option.label }}
+                        </a>
+                    {% endfor %}
+                </div>
+
+                <a class="crm-button crm-button-secondary crm-gantt-period-step" href="{{ url_for('projects_gantt', q=filters.q, status=filters.status, priority=filters.priority, owner=filters.owner, alert=filters.alert, sort=filters.sort, scope=gantt.controls.scope, range_start=gantt.controls.next_start) }}" aria-label="Next date range">&rsaquo;</a>
+            </div>
+        </div>
+
+        <div
+            class="crm-gantt-table-wrap"
+            data-gantt-board
+            data-gantt-start="{{ gantt.start.isoformat() }}"
+            data-gantt-end="{{ gantt.end.isoformat() }}"
+            data-gantt-days="{{ gantt.days|length }}"
+        >
             <table class="crm-gantt-table">
                 <thead>
                     <tr>
                         <th class="crm-gantt-name-head">
                             <div class="crm-gantt-name-head-inner">
                                 <span>Name</span>
-                                <a class="crm-gantt-add-link" href="{{ url_for('new_project') }}">+</a>
+                                <a class="crm-gantt-add-link" href="{{ url_for('new_project') }}" data-crm-modal-open="project">+</a>
                             </div>
                         </th>
                         <th class="crm-gantt-timeline-head">
@@ -44,21 +74,34 @@
                                 </div>
                             </td>
                             <td class="crm-gantt-timeline-cell">
-                                <div class="crm-gantt-grid" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(56px, 1fr));">
+                                <div class="crm-gantt-grid" data-gantt-grid style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(56px, 1fr));">
                                     {% for day in gantt.days %}
                                         <div class="crm-gantt-grid-cell {% if day.weekday() >= 5 %}is-weekend{% endif %} {% if day == today_date %}is-today{% endif %}"></div>
                                     {% endfor %}
 
                                     {% if gantt.start <= today_date <= gantt.end %}
-                                        <div class="crm-gantt-today-line" style="grid-column: {{ (today_date - gantt.start).days + 1 }};"></div>
+                                        <div class="crm-gantt-today-line" style="--gantt-today-x: calc(({{ (today_date - gantt.start).days }} + 0.5) * 100% / {{ gantt.days|length }});"></div>
                                     {% endif %}
 
                                     {% if group.project.offset is not none and group.project.span is not none %}
                                         <div
-                                            class="crm-gantt-bar crm-gantt-bar-project {% if group.project.status in ['Overdue', 'At Risk'] %}crm-gantt-bar-danger{% endif %}"
+                                            class="crm-gantt-bar crm-gantt-bar-project {% if group.project.status in ['Overdue', 'At Risk'] %}crm-gantt-bar-danger{% endif %} {% if group.project.is_clipped_start %}is-clipped-start{% endif %} {% if group.project.is_clipped_end %}is-clipped-end{% endif %}"
                                             style="grid-column: {{ group.project.offset + 1 }} / span {{ group.project.span }};"
+                                            data-gantt-bar
+                                            data-gantt-type="project"
+                                            data-gantt-id="{{ group.project.project_id }}"
+                                            data-start-date="{{ group.project.start.isoformat() }}"
+                                            data-due-date="{{ group.project.end.isoformat() }}"
+                                            data-update-url="{{ url_for('update_project_schedule', project_id=group.project.project_id) }}"
+                                            data-detail-url="{{ url_for('project_detail', project_id=group.project.project_id) }}"
+                                            tabindex="0"
+                                            aria-label="{{ group.project.label }} schedule {{ group.project.start|date_label }} to {{ group.project.end|date_label }}"
                                         >
-                                            <span>{{ group.project.progress_percent }}%</span>
+                                            <button class="crm-gantt-handle crm-gantt-handle-start" type="button" data-gantt-handle="start" aria-label="Change start date"></button>
+                                            <span class="crm-gantt-bar-label">
+                                                <small>{{ group.project.status }} | {{ group.project.action_count }} tasks</small>
+                                            </span>
+                                            <button class="crm-gantt-handle crm-gantt-handle-end" type="button" data-gantt-handle="end" aria-label="Change due date"></button>
                                         </div>
                                     {% endif %}
                                 </div>
@@ -71,27 +114,40 @@
                                     <div class="crm-gantt-name-cell-inner">
                                         <span class="crm-gantt-task-indent"></span>
                                         <div class="crm-gantt-name-copy">
-                                            <strong>{{ row.label }}</strong>
+                                            <a class="crm-gantt-action-link" href="{{ url_for('action_detail', action_id=row.action_id) }}">{{ row.label }}</a>
                                             <span>{{ row.subtitle }} | {{ row.status }}</span>
                                         </div>
                                     </div>
                                 </td>
                                 <td class="crm-gantt-timeline-cell">
-                                    <div class="crm-gantt-grid" style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(56px, 1fr));">
+                                    <div class="crm-gantt-grid" data-gantt-grid style="grid-template-columns: repeat({{ gantt.days|length }}, minmax(56px, 1fr));">
                                         {% for day in gantt.days %}
                                             <div class="crm-gantt-grid-cell {% if day.weekday() >= 5 %}is-weekend{% endif %} {% if day == today_date %}is-today{% endif %}"></div>
                                         {% endfor %}
 
                                         {% if gantt.start <= today_date <= gantt.end %}
-                                            <div class="crm-gantt-today-line" style="grid-column: {{ (today_date - gantt.start).days + 1 }};"></div>
+                                            <div class="crm-gantt-today-line" style="--gantt-today-x: calc(({{ (today_date - gantt.start).days }} + 0.5) * 100% / {{ gantt.days|length }});"></div>
                                         {% endif %}
 
                                         {% if row.offset is not none and row.span is not none %}
                                             <div
-                                                class="crm-gantt-bar crm-gantt-bar-action {% if row.status in ['Overdue', 'At Risk'] %}crm-gantt-bar-danger{% endif %}"
+                                                class="crm-gantt-bar crm-gantt-bar-action {% if row.status in ['Overdue', 'At Risk'] %}crm-gantt-bar-danger{% endif %} {% if row.is_clipped_start %}is-clipped-start{% endif %} {% if row.is_clipped_end %}is-clipped-end{% endif %}"
                                                 style="grid-column: {{ row.offset + 1 }} / span {{ row.span }};"
+                                                data-gantt-bar
+                                                data-gantt-type="action"
+                                                data-gantt-id="{{ row.action_id }}"
+                                                data-start-date="{{ row.start.isoformat() }}"
+                                                data-due-date="{{ row.end.isoformat() }}"
+                                                data-update-url="{{ url_for('update_action_schedule', action_id=row.action_id) }}"
+                                                data-detail-url="{{ url_for('action_detail', action_id=row.action_id) }}"
+                                                tabindex="0"
+                                                aria-label="{{ row.label }} schedule {{ row.start|date_label }} to {{ row.end|date_label }}"
                                             >
-                                                <span>{{ row.progress_percent }}%</span>
+                                                <button class="crm-gantt-handle crm-gantt-handle-start" type="button" data-gantt-handle="start" aria-label="Change start date"></button>
+                                                <span class="crm-gantt-bar-label">
+                                                    <small>{{ row.description or (row.subtitle ~ ' | ' ~ row.status) }}</small>
+                                                </span>
+                                                <button class="crm-gantt-handle crm-gantt-handle-end" type="button" data-gantt-handle="end" aria-label="Change due date"></button>
                                             </div>
                                         {% endif %}
                                     </div>

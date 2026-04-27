@@ -1,0 +1,141 @@
+<div class="crm-modal-shell" id="crmProjectModal" hidden>
+    <button class="crm-modal-backdrop" type="button" data-crm-modal-close aria-label="Close modal"></button>
+    <section class="crm-modal" role="dialog" aria-modal="true" aria-labelledby="crmProjectModalTitle">
+        <div class="crm-modal-header">
+            <div>
+                <p class="crm-panel-kicker">Project form</p>
+                <h3 id="crmProjectModalTitle">Create project</h3>
+            </div>
+            <button class="crm-modal-close" type="button" data-crm-modal-close aria-label="Close modal">&times;</button>
+        </div>
+
+        <form class="crm-form-grid crm-modal-form" method="post" action="{{ url_for('new_project') }}">
+            <input type="hidden" name="updated_by" value="{{ default_actor }}">
+
+            <label>
+                <span>Service</span>
+                <select class="crm-select" name="service_name">
+                    {% for service in service_options %}
+                        <option value="{{ service }}">{{ service }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Project name</span>
+                <input class="crm-input" type="text" name="project_name">
+            </label>
+            <label>
+                <span>Client name</span>
+                <input class="crm-input" type="text" name="client_name">
+            </label>
+            <label>
+                <span>Priority</span>
+                <select class="crm-select" name="priority">
+                    {% for priority in priority_options %}
+                        <option value="{{ priority }}" {% if priority == 'Medium' %}selected{% endif %}>{{ priority }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Owner</span>
+                <input class="crm-input" type="text" name="owner" value="{{ default_actor }}">
+            </label>
+            <label>
+                <span>Contact number</span>
+                <input class="crm-input" type="text" name="contact_number">
+            </label>
+            <label>
+                <span>Start date</span>
+                <input class="crm-input" type="date" name="start_date">
+            </label>
+            <label>
+                <span>Due date</span>
+                <input class="crm-input" type="date" name="due_date">
+            </label>
+            <label class="full">
+                <span>Remark</span>
+                <textarea class="crm-textarea" name="remark" rows="4"></textarea>
+            </label>
+
+            <div class="crm-form-actions full">
+                <button class="crm-button crm-button-ghost" type="button" data-crm-modal-close>Cancel</button>
+                <button class="crm-button crm-button-primary" type="submit">Create project</button>
+            </div>
+        </form>
+    </section>
+</div>
+
+<div class="crm-modal-shell" id="crmActionModal" hidden>
+    <button class="crm-modal-backdrop" type="button" data-crm-modal-close aria-label="Close modal"></button>
+    <section class="crm-modal" role="dialog" aria-modal="true" aria-labelledby="crmActionModalTitle">
+        <div class="crm-modal-header">
+            <div>
+                <p class="crm-panel-kicker">Action form</p>
+                <h3 id="crmActionModalTitle">Create action</h3>
+            </div>
+            <button class="crm-modal-close" type="button" data-crm-modal-close aria-label="Close modal">&times;</button>
+        </div>
+
+        <form class="crm-form-grid crm-modal-form" method="post" action="{{ url_for('new_action') }}">
+            <input type="hidden" name="updated_by" value="{{ default_actor }}">
+
+            <label class="full">
+                <span>Project</span>
+                <select class="crm-select" name="project_id" data-crm-action-project-select>
+                    {% for row in modal_projects %}
+                        <option value="{{ row.id }}">{{ row.project_name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="full">
+                <span>Action name</span>
+                <input class="crm-input" type="text" name="action_name">
+            </label>
+            <label class="full">
+                <span>Description</span>
+                <textarea class="crm-textarea" name="description" rows="3"></textarea>
+            </label>
+            <label>
+                <span>Status</span>
+                <select class="crm-select" name="action_status">
+                    {% for status in action_status_options %}
+                        <option value="{{ status }}" {% if status == 'Not Started' %}selected{% endif %}>{{ status }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Priority</span>
+                <select class="crm-select" name="priority">
+                    {% for priority in priority_options %}
+                        <option value="{{ priority }}" {% if priority == 'Medium' %}selected{% endif %}>{{ priority }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Assignee</span>
+                <input class="crm-input" type="text" name="assignee" value="{{ default_actor }}">
+            </label>
+            <label>
+                <span>Start date</span>
+                <input class="crm-input" type="date" name="start_date">
+            </label>
+            <label>
+                <span>Due date</span>
+                <input class="crm-input" type="date" name="due_date">
+            </label>
+            <label class="full">
+                <span>Next action</span>
+                <textarea class="crm-textarea" name="next_action" rows="3"></textarea>
+            </label>
+            <label class="full">
+                <span>Remark</span>
+                <textarea class="crm-textarea" name="remark" rows="3"></textarea>
+            </label>
+
+            <div class="crm-form-actions full">
+                <button class="crm-button crm-button-ghost" type="button" data-crm-modal-close>Cancel</button>
+                <button class="crm-button crm-button-primary" type="submit">Create action</button>
+            </div>
+        </form>
+    </section>
+</div>

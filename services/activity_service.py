@@ -69,20 +69,4 @@ def build_rollup_logs(before_project, after_project, project_id, updated_by):
             )
         )
 
-    if int(before_project.get("progress_percent", 0)) != int(after_project.get("progress_percent", 0)):
-        logs.append(
-            build_log(
-                project_id=project_id,
-                action_id="",
-                field_name="project_progress",
-                old_value=str(before_project.get("progress_percent", 0)),
-                new_value=str(after_project.get("progress_percent", 0)),
-                updated_by=updated_by,
-                comment=(
-                    f"Project progress recalculated from {before_project.get('progress_percent', 0)}%"
-                    f" to {after_project.get('progress_percent', 0)}%."
-                ),
-            )
-        )
-
     return logs

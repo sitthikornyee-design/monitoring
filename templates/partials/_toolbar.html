@@ -54,7 +54,7 @@
         <div class="crm-toolbar-actions">
             <button class="crm-button crm-button-secondary" type="submit">Apply</button>
             <a class="crm-button crm-button-ghost" href="{% if current_view == 'list' %}{{ url_for('projects_list') }}{% elif current_view == 'board' %}{{ url_for('projects_board') }}{% elif current_view == 'gantt' %}{{ url_for('projects_gantt') }}{% else %}{{ url_for('projects_table') }}{% endif %}">Reset</a>
-            <a class="crm-button crm-button-primary" href="{{ url_for('new_project') }}">Add Project</a>
+            <a class="crm-button crm-button-primary" href="{{ url_for('new_project') }}" data-crm-modal-open="project">Add Project</a>
         </div>
     </form>
 </section>

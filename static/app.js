@@ -413,6 +413,326 @@ function initCrmGanttToggles() {
     });
 }
 
+function showCrmToast(message, type = "success") {
+    let toast = document.querySelector("[data-crm-toast]");
+
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.setAttribute("data-crm-toast", "true");
+        document.body.appendChild(toast);
+    }
+
+    toast.className = `crm-board-toast is-${type} is-visible`;
+    toast.textContent = message;
+
+    window.clearTimeout(toast.hideTimer);
+    toast.hideTimer = window.setTimeout(() => {
+        toast.classList.remove("is-visible");
+    }, 2200);
+}
+
+function parseCrmDate(value) {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return null;
+    }
+
+    const [year, month, day] = value.split("-").map(Number);
+    const parsed = new Date(year, month - 1, day);
+
+    if (
+        parsed.getFullYear() !== year ||
+        parsed.getMonth() !== month - 1 ||
+        parsed.getDate() !== day
+    ) {
+        return null;
+    }
+
+    return parsed;
+}
+
+function formatCrmDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+function addCrmDays(date, days) {
+    const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    next.setDate(next.getDate() + days);
+    return next;
+}
+
+function diffCrmDays(startDate, endDate) {
+    const startValue = Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const endValue = Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    return Math.round((endValue - startValue) / 86400000);
+}
+
+function clampNumber(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+}
+
+function initCrmGanttSchedule() {
+    const board = document.querySelector("[data-gantt-board]");
+    if (!board) {
+        return;
+    }
+
+    const timelineStart = parseCrmDate(board.getAttribute("data-gantt-start"));
+    const dayCount = parseInt(board.getAttribute("data-gantt-days") || "0", 10);
+
+    if (!timelineStart || !dayCount) {
+        return;
+    }
+
+    let activeDrag = null;
+
+    function getCellWidth(grid) {
+        const rect = grid.getBoundingClientRect();
+        return rect.width / dayCount;
+    }
+
+    function getBarRange(bar) {
+        const startDate = parseCrmDate(bar.getAttribute("data-start-date"));
+        const dueDate = parseCrmDate(bar.getAttribute("data-due-date"));
+
+        if (!startDate || !dueDate) {
+            return null;
+        }
+
+        const startIndex = clampNumber(diffCrmDays(timelineStart, startDate), 0, dayCount - 1);
+        const endIndex = clampNumber(diffCrmDays(timelineStart, dueDate), 0, dayCount - 1);
+        return {
+            startIndex: Math.min(startIndex, endIndex),
+            endIndex: Math.max(startIndex, endIndex),
+        };
+    }
+
+    function captureBarSnapshot(bar) {
+        return {
+            gridColumn: bar.style.gridColumn,
+            startDate: bar.getAttribute("data-start-date"),
+            dueDate: bar.getAttribute("data-due-date"),
+            ariaLabel: bar.getAttribute("aria-label") || "",
+        };
+    }
+
+    function restoreBarSnapshot(bar, snapshot) {
+        bar.style.gridColumn = snapshot.gridColumn;
+        bar.setAttribute("data-start-date", snapshot.startDate);
+        bar.setAttribute("data-due-date", snapshot.dueDate);
+        bar.setAttribute("aria-label", snapshot.ariaLabel);
+        bar.classList.remove("is-dirty");
+        delete bar.dataset.pendingStartDate;
+        delete bar.dataset.pendingDueDate;
+    }
+
+    function setBarRange(bar, startIndex, endIndex) {
+        const nextStart = Math.min(startIndex, endIndex);
+        const nextEnd = Math.max(startIndex, endIndex);
+        const span = nextEnd - nextStart + 1;
+        const startValue = formatCrmDate(addCrmDays(timelineStart, nextStart));
+        const dueValue = formatCrmDate(addCrmDays(timelineStart, nextEnd));
+
+        bar.style.gridColumn = `${nextStart + 1} / span ${span}`;
+        bar.dataset.pendingStartDate = startValue;
+        bar.dataset.pendingDueDate = dueValue;
+        bar.setAttribute("aria-label", `Schedule ${startValue} to ${dueValue}`);
+        bar.classList.add("is-dirty");
+    }
+
+    async function persistBarRange(bar, snapshot) {
+        const updateUrl = bar.getAttribute("data-update-url");
+        const startDate = bar.dataset.pendingStartDate;
+        const dueDate = bar.dataset.pendingDueDate;
+
+        if (!updateUrl || !startDate || !dueDate) {
+            return;
+        }
+
+        bar.classList.add("is-saving");
+
+        try {
+            const response = await fetch(updateUrl, {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    start_date: startDate,
+                    due_date: dueDate,
+                }),
+            });
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok || result.ok === false) {
+                throw new Error(result.message || "Timeline could not be updated.");
+            }
+
+            bar.setAttribute("data-start-date", result.start_date || startDate);
+            bar.setAttribute("data-due-date", result.due_date || dueDate);
+            bar.classList.remove("is-dirty", "is-clipped-start", "is-clipped-end");
+            delete bar.dataset.pendingStartDate;
+            delete bar.dataset.pendingDueDate;
+            showCrmToast("Timeline updated.");
+        } catch (error) {
+            restoreBarSnapshot(bar, snapshot);
+            showCrmToast(error.message || "Could not update timeline.", "error");
+        } finally {
+            bar.classList.remove("is-saving");
+        }
+    }
+
+    function startBarDrag(event, bar) {
+        if (event.button !== 0) {
+            return;
+        }
+
+        const grid = bar.closest("[data-gantt-grid]");
+        const range = getBarRange(bar);
+        if (!grid || !range) {
+            return;
+        }
+
+        const handle = event.target.closest("[data-gantt-handle]");
+        activeDrag = {
+            bar,
+            grid,
+            mode: handle ? handle.getAttribute("data-gantt-handle") : "move",
+            pointerId: event.pointerId,
+            originX: event.clientX,
+            cellWidth: getCellWidth(grid),
+            startIndex: range.startIndex,
+            endIndex: range.endIndex,
+            snapshot: captureBarSnapshot(bar),
+            changed: false,
+        };
+
+        bar.classList.add("is-dragging");
+        bar.setPointerCapture(event.pointerId);
+        event.preventDefault();
+    }
+
+    function updateBarDrag(event) {
+        if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+            return;
+        }
+
+        const delta = Math.round((event.clientX - activeDrag.originX) / activeDrag.cellWidth);
+        let nextStart = activeDrag.startIndex;
+        let nextEnd = activeDrag.endIndex;
+
+        if (activeDrag.mode === "start") {
+            nextStart = clampNumber(activeDrag.startIndex + delta, 0, nextEnd);
+        } else if (activeDrag.mode === "end") {
+            nextEnd = clampNumber(activeDrag.endIndex + delta, nextStart, dayCount - 1);
+        } else {
+            const span = activeDrag.endIndex - activeDrag.startIndex;
+            nextStart = clampNumber(activeDrag.startIndex + delta, 0, dayCount - 1 - span);
+            nextEnd = nextStart + span;
+        }
+
+        if (nextStart === activeDrag.startIndex && nextEnd === activeDrag.endIndex) {
+            return;
+        }
+
+        activeDrag.changed = true;
+        setBarRange(activeDrag.bar, nextStart, nextEnd);
+    }
+
+    async function finishBarDrag(event) {
+        if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+            return;
+        }
+
+        const drag = activeDrag;
+        activeDrag = null;
+
+        drag.bar.classList.remove("is-dragging");
+        if (drag.bar.hasPointerCapture(event.pointerId)) {
+            drag.bar.releasePointerCapture(event.pointerId);
+        }
+
+        if (drag.changed) {
+            await persistBarRange(drag.bar, drag.snapshot);
+        } else if (drag.mode === "move") {
+            openBarDetail(drag.bar);
+        }
+    }
+
+    function cancelBarDrag(event) {
+        if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+            return;
+        }
+
+        const drag = activeDrag;
+        activeDrag = null;
+        drag.bar.classList.remove("is-dragging");
+        restoreBarSnapshot(drag.bar, drag.snapshot);
+    }
+
+    async function nudgeBar(bar, mode, direction) {
+        const range = getBarRange(bar);
+        if (!range) {
+            return;
+        }
+
+        const snapshot = captureBarSnapshot(bar);
+        let nextStart = range.startIndex;
+        let nextEnd = range.endIndex;
+
+        if (mode === "start") {
+            nextStart = clampNumber(range.startIndex + direction, 0, range.endIndex);
+        } else if (mode === "end") {
+            nextEnd = clampNumber(range.endIndex + direction, range.startIndex, dayCount - 1);
+        } else {
+            const span = range.endIndex - range.startIndex;
+            nextStart = clampNumber(range.startIndex + direction, 0, dayCount - 1 - span);
+            nextEnd = nextStart + span;
+        }
+
+        if (nextStart === range.startIndex && nextEnd === range.endIndex) {
+            return;
+        }
+
+        setBarRange(bar, nextStart, nextEnd);
+        await persistBarRange(bar, snapshot);
+    }
+
+    function openBarDetail(bar) {
+        const detailUrl = bar.getAttribute("data-detail-url");
+        if (detailUrl) {
+            window.location.href = detailUrl;
+        }
+    }
+
+    board.querySelectorAll("[data-gantt-bar]").forEach((bar) => {
+        bar.addEventListener("pointerdown", (event) => startBarDrag(event, bar));
+        bar.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openBarDetail(bar);
+                return;
+            }
+
+            const direction = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0;
+            if (!direction) {
+                return;
+            }
+
+            event.preventDefault();
+            const mode = event.altKey ? "start" : event.shiftKey ? "end" : "move";
+            nudgeBar(bar, mode, direction);
+        });
+    });
+
+    document.addEventListener("pointermove", updateBarDrag);
+    document.addEventListener("pointerup", finishBarDrag);
+    document.addEventListener("pointercancel", cancelBarDrag);
+}
+
 function initCrmBoardDragAndDrop() {
     const board = document.querySelector("[data-board]");
     if (!board) {
@@ -550,6 +870,14 @@ function initCrmBoardDragAndDrop() {
 
     board.querySelectorAll("[data-board-card]").forEach((card) => {
         card.addEventListener("dragstart", (event) => {
+            if (
+                event.target instanceof Element &&
+                event.target.closest("[data-board-no-drag], a, button, input, select, textarea")
+            ) {
+                event.preventDefault();
+                return;
+            }
+
             draggedCard = card;
             sourceDropzone = card.parentElement;
             sourceNextSibling = card.nextElementSibling;
@@ -641,9 +969,97 @@ function initCrmBoardDragAndDrop() {
     refreshAllColumns();
 }
 
+function initCrmCreateModals() {
+    const modalMap = {
+        project: document.getElementById("crmProjectModal"),
+        action: document.getElementById("crmActionModal"),
+    };
+    const body = document.body;
+    let activeModal = null;
+
+    function focusFirstField(modal) {
+        const field = modal.querySelector("input:not([type='hidden']), select, textarea, button");
+        if (field) {
+            field.focus();
+        }
+    }
+
+    function closeModal() {
+        if (!activeModal) {
+            return;
+        }
+
+        activeModal.hidden = true;
+        activeModal = null;
+        body.classList.remove("modal-open");
+    }
+
+    function openModal(type, trigger) {
+        const modal = modalMap[type];
+        if (!modal) {
+            return;
+        }
+
+        Object.values(modalMap).forEach((item) => {
+            if (item) {
+                item.hidden = true;
+            }
+        });
+
+        const form = modal.querySelector("form");
+        if (form) {
+            form.reset();
+        }
+
+        if (type === "action" && trigger) {
+            const projectId = trigger.getAttribute("data-crm-project-id");
+            const projectSelect = modal.querySelector("[data-crm-action-project-select]");
+            if (projectId && projectSelect) {
+                projectSelect.value = projectId;
+            }
+        }
+
+        modal.hidden = false;
+        activeModal = modal;
+        body.classList.add("modal-open");
+
+        window.requestAnimationFrame(() => focusFirstField(modal));
+    }
+
+    document.querySelectorAll("[data-crm-modal-open]").forEach((trigger) => {
+        trigger.addEventListener("click", (event) => {
+            const type = trigger.getAttribute("data-crm-modal-open");
+            if (!modalMap[type]) {
+                return;
+            }
+
+            event.preventDefault();
+            openModal(type, trigger);
+        });
+    });
+
+    Object.values(modalMap).forEach((modal) => {
+        if (!modal) {
+            return;
+        }
+
+        modal.querySelectorAll("[data-crm-modal-close]").forEach((element) => {
+            element.addEventListener("click", closeModal);
+        });
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            closeModal();
+        }
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     initCrmAutoSubmitFilters();
     initCrmDeleteConfirmation();
     initCrmGanttToggles();
+    initCrmGanttSchedule();
     initCrmBoardDragAndDrop();
+    initCrmCreateModals();
 });

@@ -50,13 +50,6 @@ def parse_date(value):
         return None
 
 
-def parse_int(value, default=0):
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
-
-
 def status_badge_class(status):
     return STATUS_BADGE_CLASSES.get(status, "badge-neutral")
 
@@ -105,13 +98,6 @@ def calculate_project_status(actions):
     return "Not Started"
 
 
-def calculate_project_progress(actions):
-    if not actions:
-        return 0
-    total = sum(parse_int(action.get("progress_percent"), 0) for action in actions)
-    return round(total / len(actions))
-
-
 def sort_key_for_priority(priority):
     return {
         "Urgent": 4,
@@ -125,11 +111,11 @@ def decorate_action(action):
     display_status = get_action_display_status(action)
     due_date = parse_date(action.get("due_date"))
     start_date = parse_date(action.get("start_date"))
-    progress_percent = parse_int(action.get("progress_percent"), 0)
+    action_data = {**action}
+    action_data.pop("progress_percent", None)
 
     return {
-        **action,
-        "progress_percent": progress_percent,
+        **action_data,
         "display_status": display_status,
         "is_overdue": display_status == "Overdue",
         "is_upcoming": is_action_upcoming(action),
@@ -148,7 +134,6 @@ def compute_project_metrics(projects, actions):
     computed = []
     for project in projects:
         project_actions = grouped_actions.get(project.get("id"), [])
-        progress_percent = calculate_project_progress(project_actions)
         project_status = calculate_project_status(project_actions)
         overdue_count = len([action for action in project_actions if action["is_overdue"]])
         upcoming_count = len([action for action in project_actions if action["is_upcoming"]])
@@ -163,7 +148,6 @@ def compute_project_metrics(projects, actions):
                         item.get("action_name", "").lower(),
                     ),
                 ),
-                "progress_percent": progress_percent,
                 "project_status": project_status,
                 "project_status_badge_class": status_badge_class(project_status),
                 "priority_badge_class": priority_badge_class(project.get("priority", "Medium")),
@@ -207,6 +191,7 @@ def filter_projects(projects, filters):
                                 action.get("action_name", ""),
                                 action.get("description", ""),
                                 action.get("assignee", ""),
+                                action.get("next_action", ""),
                                 action.get("remark", ""),
                             ]
                         )
@@ -278,7 +263,34 @@ def compute_action_status_groups(projects):
     return groups
 
 
-def compute_gantt_data(projects):
+def _gantt_position(item_start, item_end, timeline_start, timeline_end):
+    if not item_start or not item_end or item_end < item_start:
+        return {
+            "offset": None,
+            "span": None,
+            "is_clipped_start": False,
+            "is_clipped_end": False,
+        }
+
+    visible_start = max(item_start, timeline_start)
+    visible_end = min(item_end, timeline_end)
+    if visible_end < timeline_start or visible_start > timeline_end:
+        return {
+            "offset": None,
+            "span": None,
+            "is_clipped_start": item_start < timeline_start,
+            "is_clipped_end": item_end > timeline_end,
+        }
+
+    return {
+        "offset": (visible_start - timeline_start).days,
+        "span": (visible_end - visible_start).days + 1,
+        "is_clipped_start": item_start < timeline_start,
+        "is_clipped_end": item_end > timeline_end,
+    }
+
+
+def compute_gantt_data(projects, visible_start=None, visible_end=None):
     all_dates = []
     for project in projects:
         for value in [project.get("start_date"), project.get("due_date")]:
@@ -291,7 +303,10 @@ def compute_gantt_data(projects):
                 if parsed:
                     all_dates.append(parsed)
 
-    if all_dates:
+    if visible_start and visible_end:
+        start = min(visible_start, visible_end)
+        end = max(visible_start, visible_end)
+    elif all_dates:
         start = min(all_dates)
         end = max(all_dates)
     else:
@@ -309,6 +324,7 @@ def compute_gantt_data(projects):
     for project in projects:
         project_start = parse_date(project.get("start_date"))
         project_due = parse_date(project.get("due_date"))
+        project_position = _gantt_position(project_start, project_due, start, end)
         project_row = {
             "type": "project",
             "project_id": project["id"],
@@ -317,9 +333,7 @@ def compute_gantt_data(projects):
             "status": project.get("project_status"),
             "start": project_start,
             "end": project_due,
-            "offset": (project_start - start).days if project_start else None,
-            "span": ((project_due - project_start).days + 1) if project_start and project_due else None,
-            "progress_percent": project.get("progress_percent", 0),
+            **project_position,
             "action_count": project.get("action_count", 0),
         }
         rows.append(project_row)
@@ -328,17 +342,18 @@ def compute_gantt_data(projects):
         for action in project.get("actions", []):
             action_start = parse_date(action.get("start_date"))
             action_due = parse_date(action.get("due_date"))
+            action_position = _gantt_position(action_start, action_due, start, end)
             action_row = {
                 "type": "action",
+                "action_id": action["id"],
                 "project_id": project["id"],
                 "label": action.get("action_name"),
+                "description": action.get("description", ""),
                 "subtitle": action.get("assignee") or "Unassigned",
                 "status": action.get("display_status"),
                 "start": action_start,
                 "end": action_due,
-                "offset": (action_start - start).days if action_start else None,
-                "span": ((action_due - action_start).days + 1) if action_start and action_due else None,
-                "progress_percent": action.get("progress_percent", 0),
+                **action_position,
                 "priority": action.get("priority", "Medium"),
             }
             rows.append(action_row)

@@ -22,9 +22,10 @@
                             data-current-status="{{ action.action_status }}"
                         >
                             <div class="crm-board-card-top">
-                                <strong>{{ action.action_name }}</strong>
+                                <a class="crm-board-action-link" href="{{ url_for('action_detail', action_id=action.id) }}" data-board-no-drag>{{ action.action_name }}</a>
                                 {{ priority_badge(action.priority) }}
                             </div>
+                            <p class="crm-board-description">{{ action.description or 'No description' }}</p>
                             <p>{{ action.project_name }} | {{ action.client_name }}</p>
                             <p class="crm-meta-line">{{ action.assignee or 'Unassigned' }} | Due {{ action.due_date|date_label }}</p>
                             <div class="crm-chip-row">
@@ -32,7 +33,10 @@
                                     {{ status_badge(action.display_status) }}
                                 {% endif %}
                             </div>
-                            <a class="crm-board-link" href="{{ url_for('project_detail', project_id=action.project_id) }}">Open project</a>
+                            <div class="crm-board-link-row">
+                                <a class="crm-board-link" href="{{ url_for('action_detail', action_id=action.id) }}" data-board-no-drag>View detail</a>
+                                <a class="crm-board-link" href="{{ url_for('project_detail', project_id=action.project_id) }}" data-board-no-drag>Open project</a>
+                            </div>
                         </article>
                     {% endfor %}
                     <p class="crm-empty-inline" data-board-empty {% if board_groups[column]|length %}hidden{% endif %}>No actions</p>

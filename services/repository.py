@@ -32,6 +32,7 @@ COLLECTION_COLUMNS = {
         "assignee",
         "start_date",
         "due_date",
+        "next_action",
         "progress_percent",
         "remark",
         "created_at",
@@ -75,7 +76,16 @@ class SQLiteRepository:
         schema = self.schema_path.read_text(encoding="utf-8")
         with self._connect() as connection:
             connection.executescript(schema)
+            self._ensure_action_columns(connection)
         self._seed_if_empty()
+
+    def _ensure_action_columns(self, connection) -> None:
+        existing_columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(actions)").fetchall()
+        }
+        if "next_action" not in existing_columns:
+            connection.execute("ALTER TABLE actions ADD COLUMN next_action TEXT")
 
     def _seed_if_empty(self) -> None:
         if not self.seed_dir:

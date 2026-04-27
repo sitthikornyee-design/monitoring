@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS actions (
     assignee TEXT,
     start_date TEXT,
     due_date TEXT,
+    next_action TEXT,
     progress_percent INTEGER NOT NULL DEFAULT 0,
     remark TEXT,
     created_at TEXT NOT NULL,

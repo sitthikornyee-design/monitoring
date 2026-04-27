@@ -39,7 +39,7 @@ def build_dashboard_data(projects):
         key=lambda item: (
             item.get("overdue_count", 0),
             sort_key_for_priority(item.get("priority", "Low")),
-            -(item.get("progress_percent", 0)),
+            item.get("updated_at", ""),
         ),
         reverse=True,
     )[:6]

@@ -52,16 +52,16 @@
             <input class="crm-input" type="text" name="assignee" value="{{ action.assignee }}">
         </label>
         <label>
-            <span>Progress %</span>
-            <input class="crm-input" type="number" min="0" max="100" name="progress_percent" value="{{ action.progress_percent }}">
-        </label>
-        <label>
             <span>Start date</span>
             <input class="crm-input" type="date" name="start_date" value="{{ action.start_date }}">
         </label>
         <label>
             <span>Due date</span>
             <input class="crm-input" type="date" name="due_date" value="{{ action.due_date }}">
+        </label>
+        <label class="full">
+            <span>Next action</span>
+            <textarea class="crm-textarea" name="next_action" rows="3">{{ action.next_action or '' }}</textarea>
         </label>
         <label class="full">
             <span>Remark</span>

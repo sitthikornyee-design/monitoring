@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import status_badge, priority_badge %}
+
+{% block content %}
+<section class="crm-detail-hero crm-action-detail-hero">
+    <div class="crm-detail-hero-copy">
+        <p class="crm-project-service">{{ project.project_name }} | {{ project.client_name or 'No client' }}</p>
+        <h3 class="crm-detail-hero-title">{{ action.action_name }}</h3>
+        <div class="crm-detail-inline-meta">
+            <span class="crm-detail-inline-item">{{ action.assignee or 'Unassigned' }}</span>
+            <span class="crm-detail-inline-item">{{ action.start_date|date_label }} - {{ action.due_date|date_label }}</span>
+            <span class="crm-detail-inline-item">{{ action.updated_at|datetime_label }}</span>
+        </div>
+
+        <details class="crm-detail-more crm-action-description" open>
+            <summary>
+                <span class="crm-detail-more-label crm-detail-more-label-closed">Description</span>
+                <span class="crm-detail-more-label crm-detail-more-label-open">Hide description</span>
+            </summary>
+
+            <div class="crm-detail-description-box">
+                {{ action.description or 'No description' }}
+            </div>
+        </details>
+    </div>
+
+    <div class="crm-detail-hero-side">
+        <div class="crm-chip-row">
+            {{ status_badge(action.display_status) }}
+            {{ priority_badge(action.priority) }}
+        </div>
+        <a class="crm-button crm-button-secondary" href="{{ url_for('edit_action', action_id=action.id) }}">Edit action</a>
+        <a class="crm-button crm-button-ghost" href="{{ url_for('project_detail', project_id=project.id) }}">Back to project</a>
+    </div>
+</section>
+
+<section class="crm-grid crm-grid-3 crm-section-gap">
+    <article class="crm-panel crm-detail-metric-card">
+        <p class="crm-metric-label">Status</p>
+        <p class="crm-metric-value crm-detail-metric-value">{{ action.display_status }}</p>
+    </article>
+    <article class="crm-panel crm-detail-metric-card">
+        <p class="crm-metric-label">Priority</p>
+        <p class="crm-metric-value crm-detail-metric-value">{{ action.priority }}</p>
+    </article>
+    <article class="crm-panel crm-detail-metric-card">
+        <p class="crm-metric-label">Timeline</p>
+        <p class="crm-metric-value crm-detail-metric-value crm-detail-metric-value-timeline">{{ action.start_date|date_label }} - {{ action.due_date|date_label }}</p>
+    </article>
+</section>
+
+<section class="crm-grid crm-grid-2 crm-section-gap">
+    <article class="crm-panel">
+        <div class="crm-panel-header">
+            <div>
+                <p class="crm-panel-kicker">Action</p>
+                <h3>Detail</h3>
+            </div>
+        </div>
+
+        <dl class="crm-detail-grid compact">
+            <div>
+                <dt>Project</dt>
+                <dd><a class="crm-table-link" href="{{ url_for('project_detail', project_id=project.id) }}">{{ project.project_name }}</a></dd>
+            </div>
+            <div>
+                <dt>Client</dt>
+                <dd>{{ project.client_name or '-' }}</dd>
+            </div>
+            <div>
+                <dt>Assignee</dt>
+                <dd>{{ action.assignee or 'Unassigned' }}</dd>
+            </div>
+            <div>
+                <dt>Start</dt>
+                <dd>{{ action.start_date|date_label }}</dd>
+            </div>
+            <div>
+                <dt>Due</dt>
+                <dd>{{ action.due_date|date_label }}</dd>
+            </div>
+            <div>
+                <dt>Next action</dt>
+                <dd>{{ action.next_action or '-' }}</dd>
+            </div>
+            <div>
+                <dt>Remark</dt>
+                <dd>{{ action.remark or '-' }}</dd>
+            </div>
+        </dl>
+    </article>
+
+    <article class="crm-panel">
+        <div class="crm-panel-header">
+            <div>
+                <p class="crm-panel-kicker">Activity log</p>
+                <h3>Audit trail</h3>
+            </div>
+        </div>
+
+        {% include "partials/_activity_timeline.html" %}
+    </article>
+</section>
+{% endblock %}

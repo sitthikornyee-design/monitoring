@@ -13,8 +13,15 @@
         <input type="hidden" name="updated_by" value="Yee">
 
         <label>
-            <span>Service name</span>
-            <input class="crm-input" type="text" name="service_name" value="{{ project.service_name }}">
+            <span>Service</span>
+            <select class="crm-select" name="service_name">
+                {% if project.service_name and project.service_name not in service_options %}
+                    <option value="{{ project.service_name }}" selected>{{ project.service_name }}</option>
+                {% endif %}
+                {% for service in service_options %}
+                    <option value="{{ service }}" {% if project.service_name == service %}selected{% endif %}>{{ service }}</option>
+                {% endfor %}
+            </select>
         </label>
         <label>
             <span>Project name</span>

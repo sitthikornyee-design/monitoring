@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% from "partials/_macros.html" import metric_card, status_badge, priority_badge, progress_bar %}
+{% from "partials/_macros.html" import metric_card, status_badge, priority_badge %}
 
 {% block content %}
 <section class="crm-page-hero">
     <div>
         <p class="crm-panel-kicker">Overview</p>
         <h1>Project Monitoring</h1>
-        <p class="crm-page-intro">Track project health, task progress, owners, due dates, and delivery risk from one clean workspace.</p>
+        <p class="crm-page-intro">Track project health, task owners, due dates, and delivery risk from one clean workspace.</p>
     </div>
 
     <div class="crm-page-hero-actions">
         <a class="crm-button crm-button-secondary" href="{{ url_for('projects_gantt') }}">Open Gantt</a>
-        <a class="crm-button crm-button-primary" href="{{ url_for('new_project') }}">Add Project</a>
+        <a class="crm-button crm-button-primary" href="{{ url_for('new_project') }}" data-crm-modal-open="project">Add Project</a>
     </div>
 </section>
 
@@ -48,10 +48,7 @@
                     <div class="crm-project-summary-meta">
                         <span>{{ project.action_count }} tasks</span>
                         <span>Due {{ project.due_date|date_label }}</span>
-                        <span>{{ project.progress_percent }}%</span>
                     </div>
-
-                    {{ progress_bar(project.progress_percent) }}
                 </a>
             {% else %}
                 <p class="crm-empty-inline">No projects yet.</p>

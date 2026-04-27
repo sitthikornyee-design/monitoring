@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from urllib.parse import urlsplit
 
 from flask import Flask, abort, flash, jsonify, redirect, render_template, request, url_for
 
@@ -24,7 +25,6 @@ from services.project_service import (
     compute_project_metrics,
     filter_projects,
     parse_date,
-    parse_int,
 )
 from services.repository import SQLiteRepository
 
@@ -43,6 +43,11 @@ repository = SQLiteRepository(
 DEFAULT_ACTOR = app.config["DEFAULT_ACTOR"]
 WORKSPACE_NAME = app.config["WORKSPACE_NAME"]
 SPACE_NAME = app.config["SPACE_NAME"]
+
+SERVICE_OPTIONS = [
+    "One Click Log-in",
+    "Virtual Phone Number",
+]
 
 
 def now_iso() -> str:
@@ -73,7 +78,7 @@ def current_actor() -> str:
 def project_form_defaults(existing=None):
     record = existing or {}
     return {
-        "service_name": record.get("service_name", ""),
+        "service_name": record.get("service_name", SERVICE_OPTIONS[0]),
         "project_name": record.get("project_name", ""),
         "client_name": record.get("client_name", ""),
         "priority": record.get("priority", "Medium"),
@@ -96,7 +101,7 @@ def action_form_defaults(project_id="", existing=None):
         "assignee": record.get("assignee", DEFAULT_ACTOR),
         "start_date": record.get("start_date", ""),
         "due_date": record.get("due_date", ""),
-        "progress_percent": record.get("progress_percent", 0),
+        "next_action": record.get("next_action") or "",
         "remark": record.get("remark", ""),
     }
 
@@ -129,10 +134,6 @@ def validate_action_payload(payload):
         if parse_date(payload["due_date"]) and parse_date(payload["start_date"]):
             if parse_date(payload["due_date"]) < parse_date(payload["start_date"]):
                 errors.append("Action due date must be after or equal to the start date.")
-    progress = parse_int(payload["progress_percent"], 0)
-    if progress < 0 or progress > 100:
-        errors.append("Progress percent must be between 0 and 100.")
-
     return errors
 
 
@@ -151,7 +152,6 @@ def build_project_payload(form_data):
 
 
 def build_action_payload(form_data):
-    progress_percent = parse_int(form_data.get("progress_percent"), 0)
     return {
         "project_id": form_data.get("project_id", "").strip(),
         "action_name": form_data.get("action_name", "").strip(),
@@ -161,7 +161,8 @@ def build_action_payload(form_data):
         "assignee": form_data.get("assignee", "").strip() or DEFAULT_ACTOR,
         "start_date": form_data.get("start_date", "").strip(),
         "due_date": form_data.get("due_date", "").strip(),
-        "progress_percent": progress_percent,
+        "next_action": form_data.get("next_action", "").strip(),
+        "progress_percent": 0,
         "remark": form_data.get("remark", "").strip(),
     }
 
@@ -177,8 +178,138 @@ def build_filters():
     }
 
 
+def build_gantt_range_request():
+    scope_days = {
+        "week": 7,
+        "month": 30,
+        "quarter": 90,
+    }
+    scope = request.args.get("scope", "week").strip().lower()
+    if scope not in scope_days:
+        scope = "week"
+
+    default_lookback = {
+        "week": 3,
+        "month": 7,
+        "quarter": 30,
+    }
+
+    requested_start = parse_date(request.args.get("range_start", "").strip())
+    range_start = requested_start or (date.today() - timedelta(days=default_lookback[scope]))
+    range_end = range_start + timedelta(days=scope_days[scope] - 1)
+
+    return range_start, range_end, scope
+
+
+def build_gantt_controls(gantt, scope):
+    start = gantt["start"]
+    end = gantt["end"]
+    span = max((end - start).days + 1, 1)
+
+    prev_start = start - timedelta(days=span)
+    next_start = start + timedelta(days=span)
+    return {
+        "scope": scope,
+        "scopes": [
+            {"value": "week", "label": "1 Week"},
+            {"value": "month", "label": "1 Month"},
+            {"value": "quarter", "label": "3 Months"},
+        ],
+        "start_value": start.isoformat(),
+        "prev_start": prev_start.isoformat(),
+        "next_start": next_start.isoformat(),
+    }
+
+
+def normalize_service_name(value):
+    return "".join(char for char in str(value or "").lower() if char.isalnum())
+
+
+def build_sidebar_service_groups(projects):
+    grouped = []
+    matched_ids = set()
+
+    for service_name in SERVICE_OPTIONS:
+        service_key = normalize_service_name(service_name)
+        service_projects = [
+            project
+            for project in projects
+            if normalize_service_name(project.get("service_name")) == service_key
+        ]
+        matched_ids.update(project.get("id") for project in service_projects)
+        grouped.append(
+            {
+                "name": service_name,
+                "projects": service_projects,
+                "count": len(service_projects),
+            }
+        )
+
+    other_projects = [project for project in projects if project.get("id") not in matched_ids]
+    if other_projects:
+        grouped.append(
+            {
+                "name": "Other services",
+                "projects": other_projects,
+                "count": len(other_projects),
+            }
+        )
+
+    return grouped
+
+
+def build_schedule_payload():
+    payload = request.get_json(silent=True) if request.is_json else request.form
+    payload = payload or {}
+    start_value = str(payload.get("start_date", "")).strip()
+    due_value = str(payload.get("due_date", "")).strip()
+    start_date = parse_date(start_value)
+    due_date = parse_date(due_value)
+
+    if not start_date or not due_date:
+        return None, "Start date and due date are required."
+    if due_date < start_date:
+        return None, "Due date must be after or equal to the start date."
+
+    return {
+        "start_date": start_date.isoformat(),
+        "due_date": due_date.isoformat(),
+    }, None
+
+
+def redirect_to_next(default_endpoint: str, **values):
+    default_url = url_for(default_endpoint, **values)
+    candidate = (request.form.get("next") or request.args.get("next") or "").strip()
+
+    if not candidate and request.referrer:
+        referrer = urlsplit(request.referrer)
+        if referrer.netloc in {"", request.host} and referrer.path:
+            candidate = referrer.path
+            if referrer.query:
+                candidate = f"{candidate}?{referrer.query}"
+
+    if not candidate:
+        return redirect(default_url)
+
+    parsed = urlsplit(candidate)
+    if parsed.netloc and parsed.netloc != request.host:
+        return redirect(default_url)
+
+    local_path = parsed.path or candidate
+    if parsed.query:
+        local_path = f"{local_path}?{parsed.query}"
+
+    if not local_path.startswith("/") or local_path.startswith("//"):
+        return redirect(default_url)
+
+    return redirect(local_path)
+
+
 @app.template_filter("date_label")
 def date_label(value):
+    if isinstance(value, (date, datetime)):
+        return value.strftime("%d %b %Y")
+
     parsed = parse_date(value)
     if not parsed:
         return "-"
@@ -214,9 +345,13 @@ def inject_globals():
         "action_status_options": ACTION_STATUS_OPTIONS,
         "priority_options": PRIORITY_OPTIONS,
         "sort_options": SORT_OPTIONS,
+        "service_options": SERVICE_OPTIONS,
         "board_columns": BOARD_COLUMNS,
         "workspace_name": WORKSPACE_NAME,
         "space_name": SPACE_NAME,
+        "default_actor": DEFAULT_ACTOR,
+        "modal_projects": sidebar_projects,
+        "sidebar_service_groups": build_sidebar_service_groups(sidebar_projects),
         "sidebar_projects": sidebar_projects,
         "sidebar_summary": sidebar_summary,
     }
@@ -274,7 +409,9 @@ def render_project_view(template_name, current_view):
     filtered_projects = filter_projects(computed_projects, filters)
     filter_options = compute_filter_options(computed_projects)
     board_groups = compute_action_status_groups(filtered_projects)
-    gantt = compute_gantt_data(filtered_projects)
+    range_start, range_end, scope = build_gantt_range_request()
+    gantt = compute_gantt_data(filtered_projects, range_start, range_end)
+    gantt["controls"] = build_gantt_controls(gantt, scope)
 
     return render_template(
         template_name,
@@ -317,8 +454,13 @@ def project_detail(project_id):
     if not project:
         abort(404)
 
+    hidden_log_fields = {"progress_percent", "project_progress"}
     activity_logs = sorted(
-        [item for item in workspace["activity_logs"] if item["project_id"] == project_id],
+        [
+            item
+            for item in workspace["activity_logs"]
+            if item["project_id"] == project_id and item.get("field_name") not in hidden_log_fields
+        ],
         key=lambda item: item.get("updated_at", ""),
         reverse=True,
     )
@@ -328,6 +470,42 @@ def project_detail(project_id):
         page_title=project["project_name"],
         page_key="projects",
         project=project,
+        activity_logs=activity_logs,
+    )
+
+
+@app.route("/actions/<action_id>")
+def action_detail(action_id):
+    workspace, computed_projects = build_workspace_view()
+    project = None
+    action = None
+
+    for project_item in computed_projects:
+        action = next((item for item in project_item.get("actions", []) if item["id"] == action_id), None)
+        if action:
+            project = project_item
+            break
+
+    if not project or not action:
+        abort(404)
+
+    hidden_log_fields = {"progress_percent", "project_progress"}
+    activity_logs = sorted(
+        [
+            item
+            for item in workspace["activity_logs"]
+            if item.get("action_id") == action_id and item.get("field_name") not in hidden_log_fields
+        ],
+        key=lambda item: item.get("updated_at", ""),
+        reverse=True,
+    )
+
+    return render_template(
+        "projects/action_detail.html",
+        page_title=action.get("action_name") or "Action Detail",
+        page_key="projects",
+        project=project,
+        action=action,
         activity_logs=activity_logs,
     )
 
@@ -443,15 +621,90 @@ def edit_project(project_id):
     )
 
 
+@app.route("/projects/<project_id>/schedule", methods=["POST"])
+def update_project_schedule(project_id):
+    projects, actions, activity_logs = repository.load_workspace_values()
+    existing = next((item for item in projects if item["id"] == project_id), None)
+    if not existing:
+        abort(404)
+
+    payload, error = build_schedule_payload()
+    if error:
+        return jsonify({"ok": False, "message": error}), 400
+
+    if existing.get("start_date") == payload["start_date"] and existing.get("due_date") == payload["due_date"]:
+        return jsonify(
+            {
+                "ok": True,
+                "project_id": project_id,
+                "start_date": payload["start_date"],
+                "due_date": payload["due_date"],
+                "message": "No schedule change needed.",
+            }
+        )
+
+    updated = {**existing, **payload, "updated_at": now_iso()}
+    logs = build_field_change_logs(
+        before=existing,
+        after=updated,
+        tracked_fields=["start_date", "due_date"],
+        project_id=project_id,
+        action_id="",
+        updated_by=current_actor(),
+    )
+
+    for index, project in enumerate(projects):
+        if project["id"] == project_id:
+            projects[index] = updated
+            break
+
+    activity_logs = logs + activity_logs
+    save_workspace(projects, actions, activity_logs)
+
+    return jsonify(
+        {
+            "ok": True,
+            "project_id": project_id,
+            "start_date": updated["start_date"],
+            "due_date": updated["due_date"],
+            "message": "Timeline updated.",
+        }
+    )
+
+
+@app.route("/projects/<project_id>/delete", methods=["POST"])
+def delete_project(project_id):
+    projects, actions, activity_logs = repository.load_workspace_values()
+    existing = next((item for item in projects if item["id"] == project_id), None)
+    if not existing:
+        abort(404)
+
+    deleted_action_count = len([item for item in actions if item["project_id"] == project_id])
+    deleted_log_count = len([item for item in activity_logs if item["project_id"] == project_id])
+
+    projects = [item for item in projects if item["id"] != project_id]
+    actions = [item for item in actions if item["project_id"] != project_id]
+    activity_logs = [item for item in activity_logs if item["project_id"] != project_id]
+
+    save_workspace(projects, actions, activity_logs)
+    flash(
+        f"Project deleted. Removed {deleted_action_count} action(s) and {deleted_log_count} activity log(s).",
+        "success",
+    )
+    return redirect_to_next("projects_table")
+
+
+@app.route("/actions/new", methods=["GET", "POST"], defaults={"project_id": ""})
 @app.route("/projects/<project_id>/actions/new", methods=["GET", "POST"])
 def new_action(project_id):
     projects, actions, activity_logs = repository.load_workspace_values()
     project = next((item for item in projects if item["id"] == project_id), None)
+    if not project and not project_id and projects:
+        project = projects[0]
     if not project:
         abort(404)
 
     before_metrics = compute_project_metrics(projects, actions)
-    before_project = next(item for item in before_metrics if item["id"] == project_id)
 
     if request.method == "POST":
         payload = build_action_payload(request.form)
@@ -557,7 +810,7 @@ def edit_action(action_id):
                 "assignee",
                 "start_date",
                 "due_date",
-                "progress_percent",
+                "next_action",
                 "remark",
             ],
             project_id=new_project_id,
@@ -596,6 +849,67 @@ def edit_action(action_id):
         action=action_form_defaults(existing=existing),
         project=project,
         projects=projects,
+    )
+
+
+@app.route("/actions/<action_id>/schedule", methods=["POST"])
+def update_action_schedule(action_id):
+    projects, actions, activity_logs = repository.load_workspace_values()
+    existing = next((item for item in actions if item["id"] == action_id), None)
+    if not existing:
+        abort(404)
+
+    payload, error = build_schedule_payload()
+    if error:
+        return jsonify({"ok": False, "message": error}), 400
+
+    if existing.get("start_date") == payload["start_date"] and existing.get("due_date") == payload["due_date"]:
+        return jsonify(
+            {
+                "ok": True,
+                "action_id": action_id,
+                "project_id": existing["project_id"],
+                "start_date": payload["start_date"],
+                "due_date": payload["due_date"],
+                "message": "No schedule change needed.",
+            }
+        )
+
+    project_id = existing["project_id"]
+    before_metrics = compute_project_metrics(projects, actions)
+    before_project = next(item for item in before_metrics if item["id"] == project_id)
+    updated = {**existing, **payload, "updated_at": now_iso()}
+
+    logs = build_field_change_logs(
+        before=existing,
+        after=updated,
+        tracked_fields=["start_date", "due_date"],
+        project_id=project_id,
+        action_id=action_id,
+        updated_by=current_actor(),
+    )
+
+    for index, action_item in enumerate(actions):
+        if action_item["id"] == action_id:
+            actions[index] = updated
+            break
+
+    after_metrics = compute_project_metrics(projects, actions)
+    after_project = next(item for item in after_metrics if item["id"] == project_id)
+    rollup_logs = build_rollup_logs(before_project, after_project, project_id, current_actor())
+    activity_logs = logs + rollup_logs + activity_logs
+    save_workspace(projects, actions, activity_logs)
+
+    return jsonify(
+        {
+            "ok": True,
+            "action_id": action_id,
+            "project_id": project_id,
+            "start_date": updated["start_date"],
+            "due_date": updated["due_date"],
+            "project_status": after_project.get("project_status"),
+            "message": "Timeline updated.",
+        }
     )
 
 
@@ -655,7 +969,6 @@ def update_action_status(action_id):
             "action_status": new_status,
             "project_id": project_id,
             "project_status": after_project.get("project_status"),
-            "project_progress": after_project.get("progress_percent"),
         }
     )
 

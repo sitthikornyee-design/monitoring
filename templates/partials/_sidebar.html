@@ -8,7 +8,7 @@
 
         <div class="crm-sidebar-scroll">
             <section class="crm-sidebar-group">
-                <a class="crm-sidebar-primary-action" href="{{ url_for('new_project') }}">+ New Project</a>
+                <a class="crm-sidebar-primary-action" href="{{ url_for('new_project') }}" data-crm-modal-open="project">+ New Project</a>
             </section>
 
             <section class="crm-sidebar-group">
@@ -23,14 +23,26 @@
                     <span class="crm-sidebar-count">{{ sidebar_summary.total_projects }}</span>
                 </div>
 
-                <div class="crm-sidebar-project-list crm-sidebar-project-list-simple">
-                    {% for project in sidebar_projects[:5] %}
-                        <a class="crm-sidebar-project-link {% if page_title == project.project_name %}active{% endif %}" href="{{ url_for('project_detail', project_id=project.id) }}">
-                            <span class="crm-sidebar-project-bullet">-</span>
-                            <span>{{ project.project_name }}</span>
-                        </a>
-                    {% else %}
-                        <div class="crm-sidebar-empty">No projects yet.</div>
+                <div class="crm-sidebar-service-list">
+                    {% for service_group in sidebar_service_groups %}
+                        <details class="crm-sidebar-service-group" {% if service_group.count %}open{% endif %}>
+                            <summary class="crm-sidebar-service-head">
+                                <span class="crm-sidebar-service-name">{{ service_group.name }}</span>
+                                <span class="crm-sidebar-service-count">{{ service_group.count }}</span>
+                                <span class="crm-sidebar-service-chevron" aria-hidden="true">›</span>
+                            </summary>
+
+                            <div class="crm-sidebar-project-list crm-sidebar-project-list-simple">
+                                {% for project in service_group.projects[:5] %}
+                                    <a class="crm-sidebar-project-link {% if page_title == project.project_name %}active{% endif %}" href="{{ url_for('project_detail', project_id=project.id) }}">
+                                        <span class="crm-sidebar-project-bullet">-</span>
+                                        <span>{{ project.project_name }}</span>
+                                    </a>
+                                {% else %}
+                                    <div class="crm-sidebar-service-empty">No projects</div>
+                                {% endfor %}
+                            </div>
+                        </details>
                     {% endfor %}
                 </div>
             </section>

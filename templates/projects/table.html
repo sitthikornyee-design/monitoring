@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "partials/_macros.html" import status_badge, priority_badge, progress_bar %}
+{% from "partials/_macros.html" import status_badge, priority_badge %}
 
 {% block content %}
     {% include "partials/_toolbar.html" %}
@@ -11,13 +11,24 @@
                     <tr>
                         <th>Service</th>
                         <th>Project</th>
+                        <th>Action & Description</th>
                         <th>Status</th>
                         <th>Priority</th>
                         <th>Owner</th>
                         <th>Start</th>
                         <th>Due</th>
-                        <th>Progress</th>
-                        <th>Actions</th>
+                        <th>
+                            <span class="crm-table-heading-action">
+                                Actions
+                                <a
+                                    class="crm-table-heading-add-action"
+                                    href="{{ url_for('new_action') }}"
+                                    data-crm-modal-open="action"
+                                    aria-label="Add action"
+                                    title="Add action"
+                                >+</a>
+                            </span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -28,21 +39,36 @@
                                 <a class="crm-table-link" href="{{ url_for('project_detail', project_id=project.id) }}">{{ project.project_name }}</a>
                                 <div class="crm-table-subtext">{{ project.client_name }}</div>
                             </td>
+                            <td class="crm-table-actions-preview-cell">
+                                <div class="crm-table-actions-preview">
+                                    {% for action in project.actions[:3] %}
+                                        <a class="crm-table-action-preview-item" href="{{ url_for('action_detail', action_id=action.id) }}">
+                                            <strong>{{ action.action_name }}</strong>
+                                            <span>{{ action.description or 'No description' }}</span>
+                                        </a>
+                                    {% else %}
+                                        <span class="crm-table-subtext">No actions created yet.</span>
+                                    {% endfor %}
+                                </div>
+                            </td>
                             <td>{{ status_badge(project.project_status) }}</td>
                             <td>{{ priority_badge(project.priority) }}</td>
                             <td>{{ project.owner }}</td>
                             <td>{{ project.start_date|date_label }}</td>
                             <td>{{ project.due_date|date_label }}</td>
-                            <td>
-                                <div class="crm-progress-cell">
-                                    <span>{{ project.progress_percent }}%</span>
-                                    {{ progress_bar(project.progress_percent) }}
-                                </div>
-                            </td>
-                            <td>
+                            <td class="crm-table-row-actions">
                                 <div class="crm-table-actions">
                                     <a href="{{ url_for('edit_project', project_id=project.id) }}">Edit</a>
-                                    <a href="{{ url_for('new_action', project_id=project.id) }}">Add action</a>
+                                    <form class="crm-inline-form" method="post" action="{{ url_for('delete_project', project_id=project.id) }}">
+                                        <input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">
+                                        <button
+                                            class="crm-link-button crm-link-danger"
+                                            type="submit"
+                                            data-confirm-delete="Delete {{ project.project_name }} and all related actions/activity logs?"
+                                        >
+                                            Delete
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>

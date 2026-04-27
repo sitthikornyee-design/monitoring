@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "partials/_macros.html" import status_badge, priority_badge, progress_bar %}
+{% from "partials/_macros.html" import status_badge, priority_badge %}
 
 {% block content %}
     {% include "partials/_toolbar.html" %}
@@ -45,17 +45,39 @@
                     </div>
                 </dl>
 
-                <div class="crm-progress-wrap">
-                    <div class="crm-progress-label">
-                        <span>Progress</span>
-                        <strong>{{ project.progress_percent }}%</strong>
-                    </div>
-                    {{ progress_bar(project.progress_percent) }}
+                <div class="crm-action-preview-list">
+                    {% for action in project.actions[:3] %}
+                        <a class="crm-action-preview-item crm-action-preview-link" href="{{ url_for('action_detail', action_id=action.id) }}">
+                            <div class="crm-action-preview-head">
+                                <strong>{{ action.action_name }}</strong>
+                                {{ status_badge(action.display_status) }}
+                            </div>
+                            <p>{{ action.description or 'No description' }}</p>
+                        </a>
+                    {% else %}
+                        <p class="crm-empty-inline">No actions created yet.</p>
+                    {% endfor %}
+
+                    {% if project.action_count > 3 %}
+                        <a class="crm-action-preview-more" href="{{ url_for('project_detail', project_id=project.id) }}">
+                            View {{ project.action_count - 3 }} more actions
+                        </a>
+                    {% endif %}
                 </div>
 
                 <div class="crm-project-card-footer">
                     <a class="crm-button crm-button-secondary" href="{{ url_for('edit_project', project_id=project.id) }}">Edit project</a>
                     <a class="crm-button crm-button-primary" href="{{ url_for('project_detail', project_id=project.id) }}">Open detail</a>
+                    <form class="crm-inline-form" method="post" action="{{ url_for('delete_project', project_id=project.id) }}">
+                        <input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">
+                        <button
+                            class="crm-button crm-button-danger"
+                            type="submit"
+                            data-confirm-delete="Delete {{ project.project_name }} and all related actions/activity logs?"
+                        >
+                            Delete project
+                        </button>
+                    </form>
                 </div>
             </article>
         {% else %}
